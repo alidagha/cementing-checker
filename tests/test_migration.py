@@ -69,3 +69,97 @@ def test_accepted_source_and_test_identity():
 def test_provision_never_overwrites_or_uses_candidate(tmp_path):
     with pytest.raises(ValueError,match='new'):provision.create(tmp_path)
     with pytest.raises(ValueError,match='separate'):provision.create(provision.ROOT/'new-child')
+
+def test_provision_from_actual_git_checkout_excludes_only_git(tmp_path,monkeypatch):
+    import shutil
+    import subprocess
+    checkout=tmp_path/'checkout';checkout.mkdir()
+    template=tmp_path/'empty-template';template.mkdir()
+    subprocess.run(['git','init','-q','--template='+str(template),'--initial-branch=fixture',str(checkout)],check=True)
+    (checkout/'.git/private-marker').write_text('metadata must never be copied')
+    original=Path(__file__).resolve().parents[1]
+    accepted=json.loads((original/'accepted.lock.json').read_text())
+    for item in [*accepted['files'],{'path':'accepted.lock.json'}]:
+        target=checkout/item['path'];target.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(original/item['path'],target)
+    # A tiny independently hashed transport fixture exercises the real verifier;
+    # hosted provisioning separately verifies every one of the 143 pinned files.
+    data=b'original';manifest=hashlib.sha256(data).hexdigest()+'  snapshot/file.py\n'
+    lock=json.loads((original/'upstream.lock.json').read_text())
+    lock['files']=[{'path':'file.py','sha256':hashlib.sha256(data).hexdigest(),
+                   'git_blob':hashlib.sha1(b'blob 8\0'+data).hexdigest()}]
+    lock['snapshot_manifest_sha256']=hashlib.sha256(manifest.encode()).hexdigest()
+    (checkout/'upstream.lock.json').write_text(json.dumps(lock))
+    monkeypatch.setattr(provision,'ROOT',checkout)
+    monkeypatch.setattr(provision.urllib.request,'urlopen',lambda *a,**k:io.BytesIO(archive()))
+    destination=tmp_path/'runtime'
+    result=provision.create(destination)
+    assert result['verified_source_files']==1
+    assert (destination/'snapshot/file.py').read_bytes()==data
+    assert not any('.git' in p.relative_to(destination).parts for p in destination.rglob('*'))
+    provision.verify_candidate(destination)
+    (checkout/'escape').symlink_to(tmp_path/'outside')
+    with pytest.raises(ValueError,match='symlink'):provision.create(tmp_path/'reject-link')
+    (checkout/'escape').unlink()
+    (checkout/'.runtime').mkdir();(checkout/'.runtime/private').write_text('private generated data')
+    with pytest.raises(ValueError,match='generated'):provision.create(tmp_path/'reject-generated')
+
+def test_strict_hosted_identity_and_nonpassing_evidence_controls():
+    s,d,r=certificate_fixture()
+    identity={'head':'a'*40,'tree':'b'*40,'run':'123','attempt':'2','schedule':'c'*64,
+              'source_lock':'d'*64,'accepted_lock':'e'*64,'requirements':'f'*64}
+    d['identity']=deepcopy(identity)
+    for shard in r.values():shard['identity']=deepcopy(identity)
+    assert ci.certify(d,r,s,identity)['identity']==identity
+    for key in identity:
+        dd,rr=deepcopy((d,r));dd['identity'][key]='stale'
+        for shard in rr.values():shard['identity'][key]='stale'
+        with pytest.raises(ValueError):ci.certify(dd,rr,s,identity)
+    for kind in ('missing-identity','duplicate-phase','xfail','setup-fail','teardown-fail'):
+        dd,rr=deepcopy((d,r))
+        if kind=='missing-identity':dd.pop('identity')
+        elif kind=='duplicate-phase':rr['A']['reports'].append(deepcopy(rr['A']['reports'][0]))
+        elif kind=='xfail':rr['A']['reports'][1]['xfail']=True
+        elif kind=='setup-fail':rr['A']['reports'][0]['outcome']='failed'
+        else:rr['A']['reports'][2]['outcome']='failed'
+        with pytest.raises(ValueError):ci.certify(dd,rr,s,identity)
+
+def test_artifact_manifest_checksum_allowlist_and_attempt_controls(tmp_path):
+    identity={'head':'a'*40,'run':'123','attempt':'2'}
+    for name in ('collection.json','A.json','source.json','environment.json'):
+        (tmp_path/name).write_text('{}')
+    ci.seal(tmp_path,'A',identity)
+    assert ci.read_bundle(tmp_path,'A',identity)[1]['identity']==identity
+    with pytest.raises(ValueError):ci.read_bundle(tmp_path,'A',dict(identity,attempt='1'))
+    (tmp_path/'A.json').write_text('{"changed":true}')
+    with pytest.raises(ValueError,match='checksum'):ci.read_bundle(tmp_path,'A',identity)
+    (tmp_path/'A.json').write_text('{}');(tmp_path/'extra.json').write_text('{}')
+    with pytest.raises(ValueError,match='Unexpected'):ci.read_bundle(tmp_path,'A',identity)
+    (tmp_path/'extra.json').unlink();(tmp_path/'source.json').unlink()
+    with pytest.raises(ValueError):ci.read_bundle(tmp_path,'A',identity)
+
+def test_checkout_proof_uses_real_clean_git_head(tmp_path,monkeypatch):
+    import shutil
+    import subprocess
+    checkout=tmp_path/'checkout';checkout.mkdir()
+    template=tmp_path/'template';template.mkdir()
+    def git(*args):
+        return subprocess.check_output(['git','-C',str(checkout),*args],text=True).strip()
+    git('init','-q','--template='+str(template),'--initial-branch=fixture')
+    git('config','user.name','CI Fixture');git('config','user.email','fixture@example.invalid')
+    root=Path(__file__).resolve().parents[1]
+    names=[x['path'] for x in json.loads((root/'accepted.lock.json').read_text())['files']]
+    names+=['accepted.lock.json','upstream.lock.json','requirements.txt','tools/test-schedule.json']
+    for name in names:
+        target=checkout/name;target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(root/name,target)
+    git('add','--',*names);git('-c','commit.gpgsign=false','commit','-qm','Synthetic checkout identity control')
+    head=git('rev-parse','HEAD');proof=tmp_path/'proof.json'
+    monkeypatch.setenv('CHECKER_TESTED_HEAD',head);monkeypatch.setenv('GITHUB_RUN_ID','123');monkeypatch.setenv('GITHUB_RUN_ATTEMPT','2')
+    actual=ci.capture_checkout(checkout,proof)
+    assert actual['head']==head and actual['tree']==git('rev-parse','HEAD^{tree}')
+    monkeypatch.setenv('GITHUB_ACTIONS','true');monkeypatch.setenv('CHECKER_CHECKOUT_PROOF',str(proof))
+    assert ci.execution_identity(checkout)==actual
+    monkeypatch.setenv('GITHUB_RUN_ATTEMPT','3')
+    with pytest.raises(ValueError):ci.execution_identity(checkout)
+    monkeypatch.setenv('CHECKER_TESTED_HEAD','0'*40)
+    with pytest.raises(ValueError,match='Checkout'):ci.capture_checkout(checkout,tmp_path/'rejected.json')

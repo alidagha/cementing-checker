@@ -67,15 +67,21 @@ def create(destination):
         raise ValueError('Source archive too large')
     files = verify_members(raw, lock)
     destination.mkdir(mode=0o700)
-    for source in ROOT.rglob('*'):
-        relative = source.relative_to(ROOT)
-        if source.is_symlink():
-            raise ValueError('Candidate symlink prohibited')
-        if source.is_file():
-            if any(x in ('.git','.runtime','__pycache__','.pytest_cache') for x in relative.parts):
+    for directory, directories, names in os.walk(ROOT, followlinks=False):
+        for name in directories+names:
+            if (Path(directory)/name).is_symlink():
+                raise ValueError('Candidate symlink prohibited')
+        # A checkout's real Git directory/worktree marker is metadata, not input.
+        directories[:]=[name for name in directories if name!='.git']
+        for name in names:
+            if name=='.git':
+                continue
+            source=Path(directory)/name
+            relative=source.relative_to(ROOT)
+            if any(x in ('.runtime','__pycache__','.pytest_cache') for x in relative.parts):
                 raise ValueError('Private/generated candidate content')
-            target = destination/relative
-            target.parent.mkdir(parents=True, exist_ok=True)
+            target=destination/relative
+            target.parent.mkdir(parents=True,exist_ok=True)
             target.write_bytes(source.read_bytes())
     for name, data in files.items():
         target = destination/'snapshot'/name

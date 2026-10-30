@@ -3,11 +3,12 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, bootstrap/checker-c01r-c04-genesis]
 permissions:
   contents: read
 env:
   CHECKER_TESTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+  PYTHONDONTWRITEBYTECODE: '1'
 jobs:
   focused:
     runs-on: ubuntu-latest
@@ -19,9 +20,20 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Verify actual checkout before execution
+        run: |
+          test "$(git rev-parse HEAD)" = "$CHECKER_TESTED_HEAD"
+          test "$(git rev-parse --is-shallow-repository)" = false
+          test -z "$(git status --porcelain=v1)"
+          mkdir -p "$RUNNER_TEMP/checker-tmp" "$RUNNER_TEMP/checker-pip"
+          echo "CHECKER_CHECKOUT_PROOF=$RUNNER_TEMP/checker-checkout.json" >> "$GITHUB_ENV"
+          echo "TMPDIR=$RUNNER_TEMP/checker-tmp" >> "$GITHUB_ENV"
+          echo "PIP_CACHE_DIR=$RUNNER_TEMP/checker-pip" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - run: python -B tools/ci.py checkout
       - run: python -m pip install -r requirements.txt
       - name: Provision external source and fresh private synthetic controls
         run: |
@@ -31,9 +43,15 @@ jobs:
           python -B tools/provision.py --seed
           python -B tools/ci.py collect
           python -B tools/ci.py run --shard ${{ matrix.shard }}
+      - name: Seal current-attempt native evidence
+        if: always()
+        run: |
+          cd "$RUNNER_TEMP/checker-runtime"
+          python -B tools/ci.py seal --shard ${{ matrix.shard }}
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: native-${{ matrix.shard }}
+          name: native-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
           path: ${{ runner.temp }}/checker-runtime/evidence/native/*.json
           if-no-files-found: error
   regression:
@@ -45,11 +63,26 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Verify aggregate job checkout
+        run: |
+          test "$(git rev-parse HEAD)" = "$CHECKER_TESTED_HEAD"
+          test "$(git rev-parse --is-shallow-repository)" = false
+          test -z "$(git status --porcelain=v1)"
+          echo "CHECKER_CHECKOUT_PROOF=$RUNNER_TEMP/checker-checkout.json" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - run: python -B tools/ci.py checkout
       - uses: actions/download-artifact@v4
         with:
-          pattern: native-*
+          pattern: native-${{ github.run_id }}-${{ github.run_attempt }}-*
           path: .runtime/native
       - run: python -B tools/ci.py certify --evidence .runtime/native
+      - uses: actions/upload-artifact@v4
+        with:
+          name: certificate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .runtime/native/certificate.json
+            .runtime/native/certificate.sha256
+          if-no-files-found: error
