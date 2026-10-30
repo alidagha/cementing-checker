@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, bootstrap/checker-c01r-c04-genesis]
+    branches: [main, bootstrap/checker-c01r-c04-genesis, 'feat/checker/**']
 permissions:
   contents: read
 env:
