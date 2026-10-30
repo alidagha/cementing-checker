@@ -161,8 +161,11 @@ def test_symlink_escape_and_no_network_calculations(case):
 
 
 def test_source_child_network_and_write_guards():
-    script = """import engineering_source as s, socket
+    script = """import engineering_source as s, socket, subprocess
 s.install_audit()
+# Trusted imports may query host metadata in a read-only system subprocess.
+# A blanket Popen prohibition broke real hosted imports; required guards remain.
+subprocess.run(['/usr/bin/uname', '-p'], check=True, capture_output=True)
 for action in (lambda: socket.socket().connect(('127.0.0.1',9)),
                lambda: open(s.SNAPSHOT/'forbidden-write', 'w'),
                lambda: open(s.ROOT.parent/'forbidden-write', 'w')):

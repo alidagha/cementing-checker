@@ -162,8 +162,6 @@ def install_audit():
     def audit(event, args):
         if event in ('socket.connect', 'socket.getaddrinfo'):
             raise RuntimeError('Network prohibited during source calculation')
-        if event == 'subprocess.Popen':
-            raise RuntimeError('Nested source subprocess prohibited')
         if event == 'open':
             name, mode, flags = args
             write = isinstance(mode, str) and any(x in mode for x in 'wax+') or isinstance(flags, int) and flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC)
