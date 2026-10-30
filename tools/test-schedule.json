@@ -3,11 +3,13 @@
     "test_checker_parser.py",
     "c04/test_c04.py",
     "tests/test_migration.py",
-    "tests/test_c06.py"
+    "tests/test_c06.py",
+    "tests/test_c08.py"
   ],
   "B": [
     "c02/test_c02.py",
-    "tests/test_c05.py"
+    "tests/test_c05.py",
+    "tests/test_c09.py"
   ],
   "C": [
     "c03/test_c03.py",

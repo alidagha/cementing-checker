@@ -59,3 +59,14 @@ The owner-authorized G01 feature branch adds independent partial comparisons wit
 For unique Hardware/temperature claims and informational source geometry, use `python -B c06_well.py operator.json input.docx`; [C06](docs/specifications/c06.md) defines its independent inputs and 15-job source-support matrix. Geometry never substitutes for Client Requested Volume.
 
 For independent measured Lab/Rheology data and automatic source recipe masses, use `python -B c07_lab.py operator.json input.docx`; [C07](docs/specifications/c07.md) distinguishes observations, source-derived values, reference confirmation and unsupported fields. Recipe calculations never predict measured laboratory outcomes.
+
+## G02 narrative extensions
+
+Use `python -B c08_summary.py input.docx operator.json` for exact source-backed
+Executive Summary evidence ([C08 contract](docs/specifications/c08-narrative.md)).
+Use `python -B c09_procedure.py input.docx operator.json` for official Procedure and
+ordered NOTE evidence ([C09 contract](docs/specifications/c09-narrative.md)).
+References require complete independent facts or explicit independently approved
+manual text. Unproved Word numbering/fields/hidden text and incomplete source
+contexts fail closed. These commands produce partial JSON findings, never Word
+edits or whole-program approval.
