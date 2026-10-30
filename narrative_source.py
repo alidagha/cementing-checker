@@ -133,6 +133,8 @@ def invoke(payload):
     """AppTest owns the real ScriptRunner context; no source gate/state is patched."""
     from tools.provision import verify_candidate
     verify_candidate(ROOT);verify_source()
+    if payload['action'] not in ('summary','render_summary','procedure','render_procedure'):
+        raise ValueError('Unknown narrative action')
     before=json.dumps(payload['operator'],sort_keys=True,allow_nan=False)
     from streamlit.testing.v1 import AppTest
     # Streamlit creates a fresh session. The script imports no App UI entrypoint.
@@ -153,7 +155,11 @@ def trace(frame,event,arg):
     return trace
 sys.settrace(trace)
 try:
-    result=summary_reference(json.loads(INPUT))
+    if PROCEDURE:
+        from c09_source import procedure_reference
+        result=procedure_reference(json.loads(INPUT))
+    else:
+        result=summary_reference(json.loads(INPUT))
     result['source_calls']=sorted(calls | set(result.pop('cement_calls')))
     result['session_state_implementation']=type(st.session_state).__module__
     result['approval_flags_supplied']=False
@@ -162,8 +168,16 @@ finally:
     sys.settrace(None)
 '''
     # Literal JSON only; no input is interpolated as executable Python.
-    script='INPUT='+repr(before)+'\n'+script
-    app=AppTest.from_string(script,default_timeout=60).run()
+    script='INPUT='+repr(before)+'\nPROCEDURE='+repr(payload['action'] in ('procedure','render_procedure'))+'\n'+script
+    import tempfile
+    descriptor, name=tempfile.mkstemp(dir=ROOT/'tmp',prefix='narrative-script-',suffix='.py')
+    os.close(descriptor);script_path=Path(name)
+    try:
+        script_path.write_text(script)
+        app=AppTest.from_file(script_path,default_timeout=60).run()
+    finally:
+        script_path.unlink()
+
     if app.exception:raise ValueError('Source narrative invocation rejected: '+str(app.exception[0].message))
     result=app.session_state['narrative_result']
     origins={}
@@ -176,7 +190,19 @@ finally:
     if json.dumps(payload['operator'],sort_keys=True,allow_nan=False)!=before:raise ValueError('Operator input mutated')
     output={'source_sha':SOURCE_SHA,'reference':result,'source_module_sha256':origins,
         'operator_input_sha256':hashlib.sha256(before.encode()).hexdigest()}
-    if payload['action']=='render_summary':
+    if payload['action'] in ('procedure','render_procedure'):
+        import tempfile
+        from c09_procedure import render_reference
+        folder=Path(tempfile.mkdtemp(dir=ROOT/'tmp',prefix='c09-reference-'))
+        destination=Path(payload['destination']) if payload['action']=='render_procedure' else folder/'reference.docx'
+        try:
+            render_reference(result,destination)
+        finally:
+            # Absolute paths keep the existing write audit meaningful; shutil's
+            # dir_fd-relative unlink would otherwise look outside tmp/cache.
+            if payload['action']=='procedure' and destination.exists():destination.unlink()
+            folder.rmdir()
+    elif payload['action']=='render_summary':
         destination=Path(payload['destination']).absolute()
         if destination.suffix!='.docx' or not destination.is_relative_to(ROOT/'tmp') or destination.resolve()!=destination or destination.exists():
             raise ValueError('New synthetic fixture must stay in runtime/tmp')

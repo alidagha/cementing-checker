@@ -19,11 +19,31 @@ def equivalent(text):
     return '\n'.join(re.sub(r'[^\S\n]+',' ',line).strip() for line in text.replace('\r\n','\n').split('\n')).strip()
 
 
+def literal_paragraph(element, document):
+    """Raw text cannot prove Word list numbers, fields or hidden-text rendering."""
+    unsupported={qn('w:'+tag) for tag in ('numPr','fldSimple','fldChar','instrText','vanish','webHidden')}
+    if any(n.tag in unsupported for n in element.iter()):
+        raise ValueError('Unproved Word numbering, field or hidden narrative text')
+    styles={s.get(qn('w:styleId')):s for s in document.styles.element}
+    pending=[n.get(qn('w:val')) for n in element.iter() if n.tag in (qn('w:pStyle'),qn('w:rStyle'))]
+    pending.extend(key for key,s in styles.items() if s.get(qn('w:default'))=='1')
+    seen=set()
+    while pending:
+        key=pending.pop()
+        if key in seen:continue
+        seen.add(key);style=styles.get(key)
+        if style is None:continue
+        if any(n.tag in unsupported for n in style.iter()):
+            raise ValueError('Unproved inherited Word numbering or hidden narrative text')
+        base=style.find(qn('w:basedOn'))
+        if base is not None:pending.append(base.get(qn('w:val')))
+
+
 def section_records(path, parsed, section):
     """Prove a single physical section envelope; no heading/table/text flattening."""
     original=safe_input(path)
     if sha256(original).hexdigest()!=parsed['source_document_sha256']:raise ValueError('Document changed during extraction')
-    body=Document(BytesIO(original)).element.body
+    document=Document(BytesIO(original));body=document.element.body
     starts=[i for i,b in enumerate(body) if b.tag==qn('w:p') and heading(text_of(b))==section]
     if len(starts)!=1:raise ValueError('Missing/duplicate semantic section heading')
     start=starts[0];end=len(body)
@@ -34,6 +54,7 @@ def section_records(path, parsed, section):
         if i in excluded_tocs and b.tag==qn('w:sdt'):continue
         if b.tag==qn('w:p') and heading(text_of(b)) is not None:
             end=i;break
+        if b.tag==qn('w:p') and text_of(b).strip():literal_paragraph(b,document)
         style=b.find('./'+qn('w:pPr')+'/'+qn('w:pStyle'))
         if b.tag==qn('w:p') and text_of(b).strip() and style is not None and style.get(qn('w:val'),'').lower().startswith('heading'):
             raise ValueError('Unknown nonblank heading within narrative envelope')
