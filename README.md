@@ -79,3 +79,10 @@ source generation and Golden UAT. In a provisioned private runtime,
 `python -B golden_admission.py reference.json` attempts the unchanged full App export
 with its real gates. Synthetic controls and self-asserted receipts never qualify as
 production Goldens; no G03 path grants `GOLDEN_PASS` or performs Word correction.
+# Selective safe-copy correction (C10)
+
+The bounded C10 library/CLI can propose and explicitly apply source-proved ordinary
+cement Yield/Sacks cell replacements to a new private DOCX, then re-parse/recompare.
+Original bytes and unselected discrepancies remain intact; unsupported dependencies
+remain manual/unverified. See [C10 contract](docs/specifications/C10-safe-copy.md).
+This is partial functional checking, not authentic Golden UAT or whole-program PASS.
