@@ -50,4 +50,12 @@ The synthetic control proposes Main DV 10 bbl: preparation water displays 44.2 b
 
 Unsupported roles, conflicting/duplicate notes, unproved fields and malformed data fail closed or remain unverified. `Solution` is not pure Mix Water. Dead Volume is not a measured tank heel or physical minimum. No new mandatory fluid exists.
 
-NOT RUN/certified: 15-job goldens, complete Formula/Procedure/Lab parity, native Word/browser, full App regression, hosted CI/rulesets, corrected DOCX, UI/integration and C05. The workflow is a local draft and must not be activated without separate authority. See `docs/governance/authority.md`, `docs/specifications/bounded-contract.md`, and the private M00 review handoff for actual local evidence.
+NOT RUN/certified: 15-job goldens, complete Formula/Procedure/Lab parity, native Word/browser, full App regression, corrected DOCX and UI/integration. The original M00 handoff describes migration evidence; subsequent owner-authorized hosted runs certify only the currently implemented Checker test scope.
+
+## G01 engineering extensions
+
+The owner-authorized G01 feature branch adds independent partial comparisons without changing accepted C01R–C04 bytes. In a provisioned private runtime, use `python -B c05_fluids.py operator.json input.docx`; see [C05 inputs, mappings and exclusions](docs/specifications/c05.md). These findings do not certify an entire program. GitHub Actions, with complete native A/B/C discovery and final `regression`, is the current implemented-scope regression authority.
+
+For unique Hardware/temperature claims and informational source geometry, use `python -B c06_well.py operator.json input.docx`; [C06](docs/specifications/c06.md) defines its independent inputs and 15-job source-support matrix. Geometry never substitutes for Client Requested Volume.
+
+For independent measured Lab/Rheology data and automatic source recipe masses, use `python -B c07_lab.py operator.json input.docx`; [C07](docs/specifications/c07.md) distinguishes observations, source-derived values, reference confirmation and unsupported fields. Recipe calculations never predict measured laboratory outcomes.
