@@ -1,6 +1,7 @@
 """G01 isolated calls to locked App authorities; no engineering formulas here."""
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -112,6 +113,118 @@ def render_fluid_fixture(reference, destination):
     template.save(str(destination))
 
 
+HARDWARE_FIELDS = ('Description', 'MD (m)', 'Size (in)', 'ID (in)', 'Joint (m)',
+                   'Weight (ppf)', 'Grade', 'Collapse (psi)', 'Burst (psi)')
+
+
+def well_reference(operator):
+    import pandas as pd
+    import materials_db as db
+    import installed_geometry as installed
+    import placement
+    import cement_chart_model as chart
+    import well_profile
+    allowed = {'job_type', 'hardware', 'placement_config', 'well_geometry', 'geothermal_config', 'fluids', 'mud_type'}
+    if not isinstance(operator, dict) or set(operator) - allowed or not {'job_type', 'hardware'} <= set(operator):
+        raise ValueError('Expected canonical job and independent hardware; only documented optional geometry/fluid inputs')
+    job = operator['job_type']
+    if job not in db.JOB_TYPES or not isinstance(operator['hardware'], list) or not operator['hardware']:
+        raise ValueError('Unknown job or empty independent Hardware')
+    hardware = operator['hardware']
+    for row in hardware:
+        if not isinstance(row, dict) or set(row) - set(HARDWARE_FIELDS) or not {'Description', 'MD (m)'} <= set(row):
+            raise ValueError('Canonical Hardware columns and explicit Description/MD required')
+        if row['Description'] not in db.HARDWARE_DESCRIPTIONS and not (job == db.CT_JOB and row['Description'] == 'CT'):
+            raise ValueError('Unknown source Hardware description')
+        if row['Description'] != 'CT':
+            installed.md_bounds(row['MD (m)'])
+            if row.get('Size (in)') is not None:
+                installed.positive_size(row['Size (in)'])
+        for value in row.values():
+            if isinstance(value, bool) or isinstance(value, (list, dict)) or isinstance(value, float) and not math.isfinite(value):
+                raise ValueError('Finite scalar Hardware properties required; missing is not zero')
+    frame = pd.DataFrame(hardware)
+    if 'fluids' in operator and not isinstance(operator['fluids'], dict):
+        raise ValueError('Independent fluids must be a canonical map; absent does not mean zero')
+    display = []
+    for original in hardware:
+        row = {k: '-' if original.get(k) is None or str(original.get(k)).strip() == '' else original[k] for k in HARDWARE_FIELDS}
+        try:
+            scalar_md = float(row['MD (m)'])
+        except (ValueError, TypeError, OverflowError):
+            pass
+        else:
+            if math.isfinite(scalar_md):
+                row['MD (m)'] = f'{scalar_md:.1f}'
+        if row['Description'] == 'Open Hole Size':
+            for field in ('Joint (m)', 'Weight (ppf)', 'Grade', 'Collapse (psi)', 'Burst (psi)'):
+                row[field] = '-'
+        display.append(row)
+    result = {'hardware': hardware, 'hardware_display': display, 'well': None,
+        'job_support_matrix': {j: {'canonical': True, 'hardware': 'UNIQUE_PRINTED_ROWS_ONLY',
+            'chart_geometry': chart.chart_job_kind(j) or 'NOT_VERIFIABLE',
+            'ct_setting_depth': j == db.CT_JOB, 'golden_parity': 'NOT_RUN'} for j in db.JOB_TYPES},
+        'source_hardware_choices': placement.hardware_choices(frame, placement.HOST_DESCRIPTIONS),
+        'geometry': {'status': 'NOT_VERIFIABLE', 'reason': 'No independent placement configuration supplied'}}
+    if ('well_geometry' in operator) != ('geothermal_config' in operator):
+        raise ValueError('Provide both independent well_geometry and geothermal_config; no temperature defaults invented')
+    if 'well_geometry' in operator:
+        geometry = dict(operator['well_geometry'])
+        if not isinstance(geometry.get('survey', []), list) or any(not isinstance(r, dict) or set(r) != set(well_profile.SURVEY_COLUMNS) for r in geometry.get('survey', [])):
+            raise ValueError('Survey stations require exactly source MD/Deviation/Azimuth fields')
+        geometry['survey'] = pd.DataFrame(geometry.get('survey', []), columns=well_profile.SURVEY_COLUMNS)
+        geothermal = operator['geothermal_config']
+        if not {'source', 'surface_temp', 'value'} <= set(geothermal):
+            raise ValueError('Explicit temperature source, value and surface temperature required')
+        projections, _, issues = well_profile.resolve_well_profile(geometry, geothermal)
+        if issues:
+            raise ValueError(' | '.join(issues))
+        result['well'] = {'full_precision': projections, 'display': dict(projections,
+            geo_gradient=f"{projections['geo_gradient']:.2f}")}
+    if job == db.CT_JOB:
+        result['ct_setting_depth_m'] = placement.ct_setting_depth(frame)
+    if 'placement_config' in operator:
+        config = operator['placement_config']
+        allowed_config = {'job_type', 'target_row', 'manual_depth_m', 'chart_excess_mode',
+            'excess_csg_oh_pct', 'excess_csg_csg_pct', 'host_row', 'tie_back_liner_lap_m'}
+        if not isinstance(config, dict) or set(config) - allowed_config:
+            raise ValueError('Unsupported placement configuration fields')
+        state = {'job_type': job, 'hardware_table': frame, 'placement_config': config}
+        try:
+            geometry = chart.resolve_chart_geometry(state)
+            if geometry is None:
+                result['geometry'] = {'status': 'NOT_VERIFIABLE', 'reason': 'Source chart path excludes Plug/Squeeze/CT; no generic substitution'}
+            else:
+                total = chart.interval_volume(geometry['capacity_segments'], 0, geometry['shoe_md'])
+                result['geometry'] = {'status': 'INFORMATIONAL', 'model': geometry,
+                    'full_annular_capacity_bbl': total, 'client_requested_volumes_bbl': {},
+                    'client_volume_comparison': 'NOT_VERIFIABLE', 'placement': []}
+                if operator.get('fluids'):
+                    fluid_op = {k: operator[k] for k in ('job_type', 'fluids', 'mud_type') if k in operator}
+                    fluid_ref = fluid_reference(fluid_op)
+                    state['fluids_config'] = {'active': fluid_ref['order'], 'params': operator['fluids']}
+                    if any(name in db.PLACEMENT_SLURRIES for name in fluid_ref['order']):
+                        placed = chart.resolve_cement_placement(state, geometry)
+                        result['geometry']['placement'] = placed
+                        result['geometry']['client_requested_volumes_bbl'] = {r['fluid']: r['entered_bbl'] for r in placed}
+                        result['geometry']['client_volume_comparison'] = 'INFORMATIONAL'
+        except (ValueError, TypeError, KeyError, OverflowError) as error:
+            result['geometry'] = {'status': 'NOT_VERIFIABLE', 'source_input_error': True, 'reason': str(error)}
+    return result
+
+
+def render_well_fixture(reference, destination):
+    from docxtpl import DocxTemplate
+    import phase_10_procedure as report
+    context = {'well_data': reference['well']['display'] if reference['well'] else {},
+        'hardware': reference['hardware_display'], 'fluids_train': [], 'slurries': [],
+        'has_preflush': False, 'has_spacer': False, 'has_scavenger': False,
+        'executive_summary': 'SYNTHETIC C06 structural control; no program certification.', 'procedure_steps': []}
+    template = DocxTemplate(str(SNAPSHOT/'master_template.docx'))
+    template.render(report._escape_xml_special_chars(report._word_quantity_context(context)))
+    template.save(str(destination))
+
+
 def run(payload):
     from tools.provision import verify_candidate
     verify_candidate(ROOT)
@@ -130,14 +243,15 @@ def run(payload):
 
     sys.settrace(trace)
     try:
-        if payload['action'] not in ('fluids', 'render_fluids'):
+        if payload['action'] not in ('fluids', 'render_fluids', 'well', 'render_well'):
             raise ValueError('Unsupported source action')
-        reference = fluid_reference(payload['operator'])
-        if payload['action'] == 'render_fluids':
+        reference = well_reference(payload['operator']) if payload['action'] in ('well', 'render_well') else fluid_reference(payload['operator'])
+        if payload['action'].startswith('render_'):
             destination = Path(payload['docx']).absolute()
             if destination.suffix != '.docx' or not destination.is_relative_to(ROOT / 'tmp') or destination.resolve() != destination or destination.exists():
                 raise ValueError('New synthetic DOCX must remain under runtime/tmp without symlinks')
-            render_fluid_fixture(reference, destination)
+            renderer = render_well_fixture if payload['action'] == 'render_well' else render_fluid_fixture
+            renderer(reference, destination)
         origins = {}
         for path in SNAPSHOT.glob('*.py'):
             module = sys.modules.get(path.stem)

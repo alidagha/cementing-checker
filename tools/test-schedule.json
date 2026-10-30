@@ -2,7 +2,8 @@
   "A": [
     "test_checker_parser.py",
     "c04/test_c04.py",
-    "tests/test_migration.py"
+    "tests/test_migration.py",
+    "tests/test_c06.py"
   ],
   "B": [
     "c02/test_c02.py",

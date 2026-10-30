@@ -55,3 +55,5 @@ NOT RUN/certified: 15-job goldens, complete Formula/Procedure/Lab parity, native
 ## G01 engineering extensions
 
 The owner-authorized G01 feature branch adds independent partial comparisons without changing accepted C01R–C04 bytes. In a provisioned private runtime, use `python -B c05_fluids.py operator.json input.docx`; see [C05 inputs, mappings and exclusions](docs/specifications/c05.md). These findings do not certify an entire program. GitHub Actions, with complete native A/B/C discovery and final `regression`, is the current implemented-scope regression authority.
+
+For unique Hardware/temperature claims and informational source geometry, use `python -B c06_well.py operator.json input.docx`; [C06](docs/specifications/c06.md) defines its independent inputs and 15-job source-support matrix. Geometry never substitutes for Client Requested Volume.

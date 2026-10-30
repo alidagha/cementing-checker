@@ -28,6 +28,11 @@ def rows(table):
             for _, cells in sorted(grouped.items()) if all(len(v) == 1 for v in cells.values())]
 
 
+def regular_columns(row):
+    """A scalar header proves units only on the same unmerged physical grid."""
+    return all(c['locator']['column'] == i and c['locator']['column_span'] == 1 for i, c in enumerate(row))
+
+
 def unique_table(parsed, anchor, section):
     found = [t for t in tables(parsed) if t[0]['table_anchor'] == anchor and t[0]['section'] == section]
     return found[0] if len(found) == 1 else None

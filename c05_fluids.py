@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 
 from checker_parser import parse_docx, norm, FLUIDS
-from comparison_records import ROOT, unique_table, rows, finding, finish
+from comparison_records import ROOT, unique_table, rows, regular_columns, finding, finish
 from engineering_source import request
 from c02_engine import read_json
 
@@ -25,7 +25,7 @@ def compare_document(docx, operator):
     ref = source['reference']
     findings = []
     table = unique_table(parsed, 'Fluids', 'fluids')
-    candidates = rows(table) if table else []
+    candidates = [r for r in rows(table) if regular_columns(r)] if table else []
     headers = [r for r in candidates if [norm(c['raw_text']) for c in r] == [norm(x) for x in FLUID_HEADERS]]
     valid = candidates if len(headers) == 1 else []
     seen = []
@@ -57,7 +57,7 @@ def compare_document(docx, operator):
     if ref['spacer']:
         s = ref['spacer']
         table = unique_table(parsed, 'Spacer Additives Data', 'preflush')
-        candidates = rows(table) if table else []
+        candidates = [r for r in rows(table) if regular_columns(r)] if table else []
         headers = [r for r in candidates if [norm(c['raw_text']) for c in r] == [norm(x) for x in SPACER_HEADERS]]
         valid = candidates if len(headers) == 1 else []
         for material, display in zip(s['recipe']['materials'], s['rows']):
