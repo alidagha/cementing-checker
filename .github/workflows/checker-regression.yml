@@ -17,7 +17,7 @@ jobs:
       matrix:
         shard: [A, B, C]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -30,7 +30,7 @@ jobs:
           echo "CHECKER_CHECKOUT_PROOF=$RUNNER_TEMP/checker-checkout.json" >> "$GITHUB_ENV"
           echo "TMPDIR=$RUNNER_TEMP/checker-tmp" >> "$GITHUB_ENV"
           echo "PIP_CACHE_DIR=$RUNNER_TEMP/checker-pip" >> "$GITHUB_ENV"
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - run: python -B tools/ci.py checkout
@@ -48,7 +48,7 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/checker-runtime"
           python -B tools/ci.py seal --shard ${{ matrix.shard }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: native-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: test '${{ needs.focused.result }}' = success
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -70,16 +70,16 @@ jobs:
           test "$(git rev-parse --is-shallow-repository)" = false
           test -z "$(git status --porcelain=v1)"
           echo "CHECKER_CHECKOUT_PROOF=$RUNNER_TEMP/checker-checkout.json" >> "$GITHUB_ENV"
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - run: python -B tools/ci.py checkout
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8.0.2
         with:
           pattern: native-${{ github.run_id }}-${{ github.run_attempt }}-*
           path: .runtime/native
       - run: python -B tools/ci.py certify --evidence .runtime/native
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: certificate-${{ github.run_id }}-${{ github.run_attempt }}
           path: |

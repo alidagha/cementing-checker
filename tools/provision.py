@@ -126,6 +126,11 @@ def seed():
     request({'action':'render_fixture','operator':gross,'docx':str(ROOT/'c03/fixtures/red-gross.docx'),
              'fixture':{'Main':{'dead':5,'tank':'Mud Reserve Tanks'}}})
     main = recipe(mixed=True)
+    # C04's cross-boundary symlink control needs this C03 fixture even when
+    # shard C runs on a different machine. Use the unchanged source renderer.
+    request({'action':'render_fixture','operator':main,
+             'docx':str(ROOT/'c03/fixtures/mixed5.docx'),
+             'fixture':{'Main':{'dead':5,'tank':'Mud Reserve Tanks'}}})
     doc = ROOT/'c04/fixtures/synthetic-main.docx'
     result = call({'action':'fixture','operator':main,'docx':str(doc),
                    'fixture':{'Main':{'dead':5,'tank':'Mud Reserve Tanks'}}})
