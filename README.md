@@ -70,3 +70,12 @@ References require complete independent facts or explicit independently approved
 manual text. Unproved Word numbering/fields/hidden text and incomplete source
 contexts fail closed. These commands produce partial JSON findings, never Word
 edits or whole-program approval.
+
+## G03 production-DOCX admission
+
+[The admission contract](docs/uat/G03-admission-contract.md), [15-job inventory](docs/uat/job-manifest.json)
+and [X01–X22 matrix](docs/uat/cross-case-matrix.json) separate component regression,
+source generation and Golden UAT. In a provisioned private runtime,
+`python -B golden_admission.py reference.json` attempts the unchanged full App export
+with its real gates. Synthetic controls and self-asserted receipts never qualify as
+production Goldens; no G03 path grants `GOLDEN_PASS` or performs Word correction.

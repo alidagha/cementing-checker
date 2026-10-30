@@ -1,0 +1,204 @@
+{
+  "schema": "g03-cross-cases.1",
+  "qualification": "Component evidence is not complete Golden UAT; no case is fully COVERED.",
+  "cases": [
+    {
+      "case_id": "X01",
+      "concern": "1/2/3 placed slurries",
+      "status": "PARTIAL",
+      "component_test": "c02/test_c02.py::test_two_slurries_in_one_docx_and_crossed_values",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "No three-slurry authentic Golden"
+    },
+    {
+      "case_id": "X02",
+      "concern": "Distinct tanks per slurry",
+      "status": "PARTIAL",
+      "component_test": "c03/test_c03.py::test_two_different_tanks_and_no_first_slurry_borrow",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "No authentic production-DOCX parity"
+    },
+    {
+      "case_id": "X03",
+      "concern": "Dead Volume inverse",
+      "status": "PARTIAL",
+      "component_test": "c03/test_c03.py::test_zero_allowance_and_negative_nominal_not_silently_clamped",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "No authentic Golden"
+    },
+    {
+      "case_id": "X04",
+      "concern": "Dead Volume correction",
+      "status": "PARTIAL",
+      "component_test": "c04/test_c04.py::test_powder_liquid_salt_dry_blend_and_unaffected_lab",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "Preview only; corrected copy/recheck NOT RUN"
+    },
+    {
+      "case_id": "X05",
+      "concern": "Spacer mixed stock",
+      "status": "PARTIAL",
+      "component_test": "tests/test_c05.py::test_all_configured_spacer_modes_and_display",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "Forward solve components only; nonunique/inventory inverse incomplete"
+    },
+    {
+      "case_id": "X06",
+      "concern": "Spacer other modes",
+      "status": "PARTIAL",
+      "component_test": "tests/test_c05.py::test_all_configured_spacer_modes_and_display",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "No authentic complete Spacer Golden"
+    },
+    {
+      "case_id": "X07",
+      "concern": "Conditional fluid families",
+      "status": "PARTIAL",
+      "component_test": "tests/test_c05.py::test_optional_source_fluids",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "Complete narrative/special-fluid Golden incomplete"
+    },
+    {
+      "case_id": "X08",
+      "concern": "Scavenger",
+      "status": "PARTIAL",
+      "component_test": "c02/test_c02.py::test_scavenger_does_not_invent_placed_or_independent_lab_report",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "Full Scavenger formulation/narrative not verified"
+    },
+    {
+      "case_id": "X09",
+      "concern": "Client volume/excess",
+      "status": "PARTIAL",
+      "component_test": "tests/test_c06.py::test_client_volume_is_not_geometry_and_two_slurries_remain_distinct",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "Authentic Golden not run"
+    },
+    {
+      "case_id": "X10",
+      "concern": "Rates/times",
+      "status": "PARTIAL",
+      "component_test": "tests/test_c05.py::test_source_parity_order_and_independent_time_oracle",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "Authentic full NOTE/train parity not run"
+    },
+    {
+      "case_id": "X11",
+      "concern": "Lab grams tolerances",
+      "status": "PARTIAL",
+      "component_test": "tests/test_c07.py::test_recipe_mass_owner_threshold_edges_and_outside",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "No authentic observed-lab Golden"
+    },
+    {
+      "case_id": "X12",
+      "concern": "Rheology datasets",
+      "status": "PARTIAL",
+      "component_test": "tests/test_c07.py::test_original_engine_oracles_and_supported_word_claims",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "Synthetic observations only; no authentic Golden"
+    },
+    {
+      "case_id": "X13",
+      "concern": "Other lab branches",
+      "status": "PARTIAL",
+      "component_test": "tests/test_c07.py::test_source_conditions_thickening_endpoint_and_no_fabrication",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "Independent observed/reviewed dataset unavailable"
+    },
+    {
+      "case_id": "X14",
+      "concern": "Narrative completeness",
+      "status": "PARTIAL",
+      "component_test": "tests/test_c09.py::test_untrusted_procedure_mutations_never_false_match",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "Source-rendered controls; no authentic production export"
+    },
+    {
+      "case_id": "X15",
+      "concern": "Malformed/missing numeric",
+      "status": "PARTIAL",
+      "component_test": "c02/test_c02.py::test_states_are_distinct",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "Authentic negative mutation pack not run"
+    },
+    {
+      "case_id": "X16",
+      "concern": "DOCX safe edit",
+      "status": "NOT_RUN",
+      "component_test": null,
+      "component_evidence_run": null,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "Corrections deliberately out of G03"
+    },
+    {
+      "case_id": "X17",
+      "concern": "Input correction cascade",
+      "status": "PARTIAL",
+      "component_test": "c04/test_c04.py::test_selected_lead_and_tail_are_isolated",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "Preview only; corrected-copy recheck absent"
+    },
+    {
+      "case_id": "X18",
+      "concern": "CT stage edges",
+      "status": "BLOCKED",
+      "component_test": "tests/test_c06.py::test_ct_zero_dimensions_remain_explicitly_unmeasured",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "CT setting depth components only; complete stage/gate inputs unavailable"
+    },
+    {
+      "case_id": "X19",
+      "concern": "Report and copy",
+      "status": "NOT_RUN",
+      "component_test": null,
+      "component_evidence_run": null,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "One-page/copy-message/UI acceptance not implemented"
+    },
+    {
+      "case_id": "X20",
+      "concern": "Exclusions",
+      "status": "PARTIAL",
+      "component_test": "test_checker_parser.py",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "Structural exclusions tested; authentic excluded-only mutation NOT RUN"
+    },
+    {
+      "case_id": "X21",
+      "concern": "Template minor revision",
+      "status": "PARTIAL",
+      "component_test": "tests/test_migration.py::test_external_source_lock_and_archive_escape_fail_closed",
+      "component_evidence_run": 41055641425,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "Pin drift rejected; no authorized changed-template revalidation"
+    },
+    {
+      "case_id": "X22",
+      "concern": "Fault isolation",
+      "status": "PARTIAL",
+      "component_test": "tests/test_g03_admission.py",
+      "component_evidence_run": null,
+      "authentic_golden_uat": "NOT_RUN",
+      "remaining_gap": "Admission rejection tested; no complete authenticated program/correction chain"
+    }
+  ]
+}
