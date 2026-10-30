@@ -1,5 +1,14 @@
 {
-  "A": ["test_checker_parser.py", "c04/test_c04.py", "tests/test_migration.py"],
-  "B": ["c02/test_c02.py"],
-  "C": ["c03/test_c03.py"]
+  "A": [
+    "test_checker_parser.py",
+    "c04/test_c04.py",
+    "tests/test_migration.py"
+  ],
+  "B": [
+    "c02/test_c02.py",
+    "tests/test_c05.py"
+  ],
+  "C": [
+    "c03/test_c03.py"
+  ]
 }
