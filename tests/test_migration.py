@@ -163,3 +163,111 @@ def test_checkout_proof_uses_real_clean_git_head(tmp_path,monkeypatch):
     with pytest.raises(ValueError):ci.execution_identity(checkout)
     monkeypatch.setenv('CHECKER_TESTED_HEAD','0'*40)
     with pytest.raises(ValueError,match='Checkout'):ci.capture_checkout(checkout,tmp_path/'rejected.json')
+
+
+def test_ci01_workflow_event_and_dependency_structure():
+    text=(Path(__file__).resolve().parents[1]/'.github/workflows/checker-regression.yml').read_text()
+    assert text.split('permissions:',1)[0]==('name: checker-regression\non:\n'
+        '  pull_request:\n    branches: [main]\n  push:\n    branches: [main]\n')
+    fast=text.split('  fast-gate:\n',1)[1].split('  focused:\n',1)[0]
+    focused=text.split('  focused:\n',1)[1].split('  regression:\n',1)[0]
+    aggregate=text.split('  regression:\n',1)[1]
+    for block in (fast,focused,aggregate):
+        assert 'fetch-depth: 0' in block and 'python -B tools/ci.py checkout' in block
+        assert 'test "$(git rev-parse HEAD)" = "$CHECKER_TESTED_HEAD"' in block
+    assert 'pip install' not in fast and 'provision.py' not in fast and 'ci.py collect' not in fast
+    assert "    if: github.event_name == 'pull_request'\n    needs: fast-gate\n" in focused
+    assert 'fail-fast: false' in focused and 'shard: [A, B, C]' in focused
+    assert '    if: always()\n    needs: [fast-gate, focused]\n' in aggregate
+    assert 'CHECKER_NEEDS_JSON: ${{ toJSON(needs) }}' in aggregate
+    assert aggregate.index('python -B tools/ci.py gate')<aggregate.index('actions/download-artifact@')
+    # Every artifact/certificate step is PR-only; main cannot manufacture a certificate.
+    for step in aggregate.split('      - ')[1:]:
+        if 'download-artifact@' in step or 'ci.py certify' in step or 'upload-artifact@' in step:
+            assert "if: github.event_name == 'pull_request'" in step
+    assert 'native-${{ github.run_id }}-${{ github.run_attempt }}-*' in aggregate
+    assert 'certificate-${{ github.run_id }}-${{ github.run_attempt }}' in aggregate
+
+
+def test_ci01_event_and_dependency_gate_is_fail_closed():
+    pr={'fast-gate':{'result':'success','outputs':{}},'focused':{'result':'success','outputs':{}}}
+    main=deepcopy(pr);main['focused']['result']='skipped'
+    assert ci.dependency_gate('pull_request','refs/pull/9/merge','main',pr)['mode']=='PR_FULL'
+    actual=ci.dependency_gate('push','refs/heads/main','',main)
+    assert actual['mode']=='MAIN_FAST_ONLY' and actual['full_regression_certified'] is False
+    for event,ref,base in [('workflow_dispatch','refs/heads/main',''),('push','refs/heads/feature',''),
+            ('push','refs/heads/main','main'),('pull_request','refs/heads/main','main'),
+            ('pull_request','refs/pull/9/merge','develop'),('pull_request','refs/pull/no/merge','main')]:
+        with pytest.raises(ValueError):ci.dependency_gate(event,ref,base,pr)
+    for event,ref,base,valid in [('pull_request','refs/pull/9/merge','main',pr),('push','refs/heads/main','',main)]:
+        for state in ('failure','cancelled','skipped','missing'):
+            invalid=deepcopy(valid)
+            if state=='missing':invalid.pop('fast-gate')
+            else:invalid['fast-gate']['result']=state
+            with pytest.raises(ValueError):ci.dependency_gate(event,ref,base,invalid)
+        for state in ('failure','cancelled','missing','skipped' if event=='pull_request' else 'success'):
+            invalid=deepcopy(valid)
+            if state=='missing':invalid.pop('focused')
+            else:invalid['focused']['result']=state
+            with pytest.raises(ValueError):ci.dependency_gate(event,ref,base,invalid)
+    for invalid in (None,[],{},dict(pr,unknown={'result':'success'}),dict(pr,focused=None)):
+        with pytest.raises(ValueError):ci.dependency_gate('pull_request','refs/pull/9/merge','main',invalid)
+    # A green aggregate dependency alone never substitutes for all three sealed test artifacts.
+    schedule,discovery,shards=certificate_fixture();shards.pop('C')
+    with pytest.raises(ValueError):ci.certify(discovery,shards,schedule)
+
+
+def test_ci01_checkout_and_gate_cli_real_git_mutations(tmp_path):
+    import os
+    import shutil
+    import subprocess
+    import sys
+    checkout=tmp_path/'checkout';checkout.mkdir();template=tmp_path/'template';template.mkdir()
+    def git(*args):return subprocess.check_output(['git','-C',str(checkout),*args],text=True).strip()
+    git('init','-q','--template='+str(template),'--initial-branch=fixture')
+    git('config','user.name','CI Fixture');git('config','user.email','fixture@example.invalid')
+    root=Path(__file__).resolve().parents[1]
+    names=[x['path'] for x in json.loads((root/'accepted.lock.json').read_text())['files']]
+    names+=['accepted.lock.json','upstream.lock.json','requirements.txt','tools/ci.py',
+            'tools/test-schedule.json','tools/test-schedule.sha256']
+    for name in names:
+        p=checkout/name;p.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(root/name,p)
+    def commit():
+        git('add','--',*names);git('-c','commit.gpgsign=false','commit','-qm','Synthetic CI policy control')
+        return git('rev-parse','HEAD')
+    head=commit();proof=tmp_path/'checkout.json'
+    env=dict(os.environ,GITHUB_ACTIONS='true',GITHUB_EVENT_NAME='push',GITHUB_REF='refs/heads/main',
+        GITHUB_BASE_REF='',CHECKER_TESTED_HEAD=head,GITHUB_RUN_ID='123',GITHUB_RUN_ATTEMPT='2',
+        CHECKER_CHECKOUT_PROOF=str(proof),PYTHONDONTWRITEBYTECODE='1')
+    def run(action):
+        return subprocess.run([sys.executable,'-B',str(checkout/'tools/ci.py'),action],cwd=checkout,
+                              env=env,capture_output=True,text=True)
+    assert run('checkout').returncode==0
+    assert json.loads(proof.read_text())['head']==head
+    env['CHECKER_TESTED_HEAD']='0'*40
+    assert run('checkout').returncode!=0
+    env['CHECKER_TESTED_HEAD']=head
+    for name,reason in [(names[0],'Accepted source/test identity mismatch'),
+                        ('accepted.lock.json','Accepted source/test identity mismatch'),
+                        ('tools/test-schedule.json','Schedule final-byte digest mismatch')]:
+        p=checkout/name;original=p.read_bytes()
+        if name=='accepted.lock.json':
+            lock=json.loads(original);lock['files'][0]['sha256']='0'*64;p.write_text(json.dumps(lock))
+        else:p.write_bytes(original+b'\n')
+        env['CHECKER_TESTED_HEAD']=commit();proof.unlink(missing_ok=True)
+        rejected=run('checkout')
+        assert rejected.returncode!=0 and reason in rejected.stderr and not proof.exists()
+        p.write_bytes(original);env['CHECKER_TESTED_HEAD']=commit()
+    assert run('checkout').returncode==0
+    env.update(GITHUB_EVENT_NAME='pull_request',GITHUB_REF='refs/pull/9/merge',GITHUB_BASE_REF='main',
+        CHECKER_NEEDS_JSON=json.dumps({'fast-gate':{'result':'success'},'focused':{'result':'success'}}))
+    assert run('checkout').returncode==0
+    gate=run('gate');assert gate.returncode==0 and json.loads(gate.stdout)['mode']=='PR_FULL'
+    env['CHECKER_NEEDS_JSON']='{"fast-gate":{"result":"success"},"focused":{"result":"skipped"}}'
+    assert run('gate').returncode!=0
+    env.update(GITHUB_EVENT_NAME='push',GITHUB_REF='refs/heads/main',GITHUB_BASE_REF='')
+    gate=run('gate');assert gate.returncode==0 and json.loads(gate.stdout)['full_regression_certified'] is False
+    for value in ('{}','not-json','null'):
+        env['CHECKER_NEEDS_JSON']=value
+        assert run('gate').returncode!=0
+    env['GITHUB_REF']='refs/heads/feature';assert run('checkout').returncode!=0

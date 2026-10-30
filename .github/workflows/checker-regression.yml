@@ -3,14 +3,34 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, bootstrap/checker-c01r-c04-genesis, 'feat/checker/**']
+    branches: [main]
 permissions:
   contents: read
 env:
   CHECKER_TESTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
   PYTHONDONTWRITEBYTECODE: '1'
 jobs:
+  fast-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Verify exact clean checkout
+        run: |
+          test "$(git rev-parse HEAD)" = "$CHECKER_TESTED_HEAD"
+          test "$(git rev-parse --is-shallow-repository)" = false
+          test -z "$(git status --porcelain=v1)"
+          echo "CHECKER_CHECKOUT_PROOF=$RUNNER_TEMP/checker-checkout.json" >> "$GITHUB_ENV"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Verify event, schedule and accepted identities without provisioning
+        run: python -B tools/ci.py checkout
   focused:
+    if: github.event_name == 'pull_request'
+    needs: fast-gate
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -56,10 +76,11 @@ jobs:
           if-no-files-found: error
   regression:
     if: always()
-    needs: [focused]
+    needs: [fast-gate, focused]
     runs-on: ubuntu-latest
+    env:
+      CHECKER_NEEDS_JSON: ${{ toJSON(needs) }}
     steps:
-      - run: test '${{ needs.focused.result }}' = success
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -74,12 +95,17 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -B tools/ci.py checkout
+      - name: Fail-closed event and dependency gate
+        run: python -B tools/ci.py gate
       - uses: actions/download-artifact@v8.0.2
+        if: github.event_name == 'pull_request'
         with:
           pattern: native-${{ github.run_id }}-${{ github.run_attempt }}-*
           path: .runtime/native
       - run: python -B tools/ci.py certify --evidence .runtime/native
+        if: github.event_name == 'pull_request'
       - uses: actions/upload-artifact@v7.0.2
+        if: github.event_name == 'pull_request'
         with:
           name: certificate-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
