@@ -11,7 +11,8 @@
     "c02/test_c02.py",
     "tests/test_c05.py",
     "tests/test_c09.py",
-    "tests/test_g03_admission.py"
+    "tests/test_g03_admission.py",
+    "tests/test_g06a.py"
   ],
   "C": [
     "c03/test_c03.py",
