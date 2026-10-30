@@ -1,0 +1,11 @@
+# Governance references and publication gates
+
+Effective: Owner M00 rev3 Public-Safe Continuation (2026-10-30), migration plan v2 (same date), full Collaboration Charter v5.3 rev8, live upstream Ponytail AGENTS and zero-regression contract, accepted bounded C01R/C02/C03/C04 contracts, Checker v3.3 blueprint. The blueprint's earlier rev6/UAT sequence is superseded only by rev8 and the Owner's explicit parallel local authorization; Functional UAT is not certified.
+
+Original authority documents are retained privately and referenced, not redistributed. Upstream documents are identified by commit/blob/SHA in `upstream.lock.json`. Charter filename: `Cementing_App_Collaboration_Charter_v5_3_rev8_EN.md`; SHA256 `2c30a189905ca408a2fce3d8ca1d6d69f840f43258cdf9d16a378daa6fd2c1d9`. The private handoff records supplied plan/prompt/blueprint identities. An operator undertaking a new Batch must obtain/read those full governing documents; this short reference does not replace them.
+
+Classification: all included files are PROPOSED PUBLIC—OWNER RIGHTS REVIEW. Upstream source/template/media/third-party libraries and original upstream governance are OMIT/REFERENCE. Original metadata-bearing fixtures, historical evidence, review archives, secrets and full recovery are PRIVATE. Any uncertain derived content remains an unresolved publication decision. A scanner cannot grant copyright/privacy clearance. No new license, SPDX grant or ownership assertion is created.
+
+Future publication requires independent architect review of the exact inventory, explicit Owner code/derived-text rights and fixture/privacy decisions, any chosen license decision, reproducible dependency/source test proof and separate genesis permission naming repository and reviewed bytes. M00 makes no stage/commit/push/PR/tag/merge/ruleset/environment change. No source history is recreated.
+
+After separately authorized genesis, propose protected main with PR review, no force-push/deletion and required `regression` check. Protect milestone tags against rewrite. These controls are NOT CONFIGURED and hosted checks NOT RUN. Subsequent bounded work uses short feature/fix/chore branches and independent review; no automatic next Batch.

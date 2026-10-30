@@ -1,0 +1,60 @@
+{
+  "scope": "Accepted bounded C01R-C04; hashes, not rights grants",
+  "files": [
+    {
+      "path": "checker_parser.py",
+      "bytes": 15086,
+      "sha256": "d1265e61d7b62164942e47e04d24b6ce82ef7218ea0d724e92de1d08f30ebcb7"
+    },
+    {
+      "path": "test_checker_parser.py",
+      "bytes": 17790,
+      "sha256": "33945abb9db12a22f07551550f3df0995aae81b2db3319fec5cdffa4f1a39686"
+    },
+    {
+      "path": "c02/c02_engine.py",
+      "bytes": 9251,
+      "sha256": "b3327b430b37df45421d81f6bed7087c381eca02cf66dc12b0df6f4262ede6bd"
+    },
+    {
+      "path": "c02/c02_compare.py",
+      "bytes": 10946,
+      "sha256": "3c416fa4d3ec7f4ba9f606cb3b8698d52391e85cde28b7295d2ebbed5d671e0d"
+    },
+    {
+      "path": "c02/test_c02.py",
+      "bytes": 13400,
+      "sha256": "872499b0a88dc8e31d0ee295c233c844bb8a36eceb78338fde0c5765dc9272af"
+    },
+    {
+      "path": "c03/c03_source.py",
+      "bytes": 7438,
+      "sha256": "aca286244e1909e9112f04c3e938c701bd47b5b4954897a0d365d0e918feeea0"
+    },
+    {
+      "path": "c03/c03_water.py",
+      "bytes": 14114,
+      "sha256": "c3b0c63eae178c94ed5a9b531bbba1cce4dd99fbdd7b3dd3ea3f83d1dce0e09d"
+    },
+    {
+      "path": "c03/test_c03.py",
+      "bytes": 16136,
+      "sha256": "0a0ea0c2f194abbc6281c0745738eb843b18e2c58e2b37b31c72c64d123b26cb"
+    },
+    {
+      "path": "c04/c04_runtime.py",
+      "bytes": 2918,
+      "sha256": "da9cefa372c771885d52ffeba02eb90477bfd82aa1bb218b35a4dc790dc65a68"
+    },
+    {
+      "path": "c04/c04_preview.py",
+      "bytes": 10823,
+      "sha256": "c589277d3ea0636f897c7e538cb45c82c1038f60d01dd7112caa708d094658f3"
+    },
+    {
+      "path": "c04/test_c04.py",
+      "bytes": 13143,
+      "sha256": "358e376354406cf30734c41443df302d3c431942b62e7f1f387b4682442ba281"
+    }
+  ]
+}

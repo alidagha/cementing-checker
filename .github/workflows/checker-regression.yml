@@ -1,0 +1,55 @@
+name: checker-regression
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+env:
+  CHECKER_TESTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [A, B, C]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.txt
+      - name: Provision external source and fresh private synthetic controls
+        run: |
+          python -B tools/provision.py --destination "$RUNNER_TEMP/checker-runtime"
+          cd "$RUNNER_TEMP/checker-runtime"
+          export PYTHONDONTWRITEBYTECODE=1 TMPDIR="$PWD/tmp" XDG_CACHE_HOME="$PWD/cache" XDG_CONFIG_HOME="$PWD/cache/config" MPLCONFIGDIR="$PWD/cache/mpl"
+          python -B tools/provision.py --seed
+          python -B tools/ci.py collect
+          python -B tools/ci.py run --shard ${{ matrix.shard }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.shard }}
+          path: ${{ runner.temp }}/checker-runtime/evidence/native/*.json
+          if-no-files-found: error
+  regression:
+    if: always()
+    needs: [focused]
+    runs-on: ubuntu-latest
+    steps:
+      - run: test '${{ needs.focused.result }}' = success
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          path: .runtime/native
+      - run: python -B tools/ci.py certify --evidence .runtime/native
