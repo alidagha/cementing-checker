@@ -61,7 +61,7 @@ def finding(record, field, expected, raw_expected, unit, function, tolerance=0, 
 
 
 def finish(parsed, source, findings, limitations):
-    mapped = {str(f['locator']) for f in findings if f['locator'] is not None}
+    mapped = {str(f['locator']) for f in findings if f['locator'] is not None and f['result'] in ('MATCH', 'DISCREPANCY')}
     for f in findings:
         f.update(source_document_sha256=parsed['source_document_sha256'], parser_schema=parsed['schema_version'], source_sha=SOURCE_SHA)
     return {'status': 'PARTIAL_FINDINGS_ONLY', 'source_document_sha256': parsed['source_document_sha256'],

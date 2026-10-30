@@ -1,5 +1,6 @@
 """G01 isolated calls to locked App authorities; no engineering formulas here."""
 import hashlib
+from copy import deepcopy
 import json
 import math
 import os
@@ -225,12 +226,242 @@ def render_well_fixture(reference, destination):
     template.save(str(destination))
 
 
+def lab_reference(operator):
+    """Independent observations, genuine source fitting/admission, never predicted measurements."""
+    import pandas as pd
+    import materials_db as db
+    import engineering_tools as eng
+    import phase_5_cement as phase5
+    import phase_7_lab as phase7
+    import phase_10_procedure as report
+    import project_state as state_source
+    import standalone_spacer as spacer_source
+    from c02_engine import reference as cement_reference
+    from checker_parser import parse_docx, norm
+    from comparison_records import tables
+    allowed = {'job_type', 'active_fluids', 'measurements', 'conditions', 'cement_operator', 'spacer_operator', 'confirmed', 'mud_type'}
+    if not isinstance(operator, dict) or set(operator) - allowed or not {'job_type', 'active_fluids', 'measurements'} <= set(operator):
+        raise ValueError('Expected job_type, explicit active_fluids and independent measurements only')
+    job = operator['job_type']; active = operator['active_fluids']
+    if job not in db.JOB_TYPES or not isinstance(active, list) or len(active) != len(set(active)) or set(active) - set(db.FLUID_TYPES):
+        raise ValueError('Unknown/duplicate source job or fluid')
+    if 'Diesel' in active and operator.get('mud_type') != 'OBM':
+        raise ValueError('Source Diesel applicability requires independent OBM mud type')
+    eligible = state_source.available_fluid_types({'job_type': job, 'mud_type': operator.get('mud_type', 'WBM')})
+    if set(active) - set(eligible):
+        raise ValueError('Source job/mud applicability rejects an active fluid')
+    observations = operator['measurements']
+    if not isinstance(observations, dict) or set(observations) - set(active):
+        raise ValueError('Measurements must belong only to explicitly active fluids')
+    if not isinstance(operator.get('confirmed', False), bool):
+        raise ValueError('Reference confirmation must be an explicit boolean')
+    conditions = operator.get('conditions', {})
+    if not isinstance(conditions, dict) or set(conditions) - {'bhct', 'bhst', 'bhsp'}:
+        raise ValueError('Only independent source BHCT/BHST/BHSP conditions are supported')
+    if any(type(v) not in (int, float) or not math.isfinite(v) for v in conditions.values()):
+        raise ValueError('Lab conditions require finite independent numbers')
+    temperature_valid = eng.lab_temperature_valid(conditions.get('bhct'), conditions.get('bhst'))
+    if {'bhct', 'bhst'} <= set(conditions) and not temperature_valid:
+        raise ValueError('Source BHCT/BHST validation failed')
+    if 'bhsp' in conditions:
+        eng.require_nonnegative_number(conditions['bhsp'], 'BHSP')
+    cement = None
+    if 'cement_operator' in operator:
+        cop = operator['cement_operator']
+        if cop.get('job_type') != job or set(cop.get('active_fluids', [])) != set(active):
+            raise ValueError('Cement reference job/active identities conflict with lab reference')
+        outer = sys.gettrace()
+        try:
+            cement = cement_reference(cop)
+        finally:
+            sys.settrace(outer)
+    qc_fields = {'rheology', 'compressive', 'free_water', 'free_water_45', 'surface_hardened_hours', 'api_fl',
+                 *(f for f, _, _ in eng.THICKENING_TEST_FIELDS)}
+    result = {'conditions': conditions, 'temperature_valid': temperature_valid,
+        'cement_reference': cement, 'fluids': {}, 'spacer': None,
+        'confirmation_scope': 'Independent reference observations only; never Word approval or historical App review'}
+    for fluid in active:
+        role = ('ordinary_lab' if fluid in db.PLACEMENT_SLURRIES and job != db.CT_JOB else
+                'spacer_lab' if fluid == 'Spacer' else 'WORD_MAPPING_NOT_VERIFIABLE')
+        item = {'role': role, 'rheology': {}, 'lab': dict(conditions, rheology={}), 'payload_admitted': False,
+            'admission_reason': 'No complete independently confirmed recipe/measurement reference'}
+        result['fluids'][fluid] = item
+        if fluid not in observations:
+            continue
+        qc = deepcopy(observations[fluid])
+        if not isinstance(qc, dict) or set(qc) - qc_fields:
+            raise ValueError('Unsupported QC input/cached result; only independent observations accepted')
+        numeric_observations = {'free_water', 'free_water_45', 'surface_hardened_hours', 'api_fl', 'thickening_cell'}
+        if any(type(qc[k]) not in (int, float) or not math.isfinite(qc[k]) for k in numeric_observations & set(qc)):
+            raise ValueError('Independent collection/cell/filtrate observations require finite JSON numbers')
+        if fluid not in (*db.PHASE7_LAB_FLUIDS, 'Spacer'):
+            item['admission_reason'] = 'No source-applicable Lab role; observations retained unverified'
+            continue
+        if 'rheology' in qc:
+            item['rheology'] = eng.validate_lab_rheology(qc, fluid)
+            item['lab']['rheology'] = item['rheology']
+        full_lab = fluid in db.PLACEMENT_SLURRIES
+        full_fields = {'free_water', 'free_water_45', 'surface_hardened_hours'}
+        if full_lab:
+            if full_fields & set(qc):
+                eng.validate_lab_collection_results(qc)
+                item['lab'].update({key: qc[key] for key in full_fields})
+            if any(f in qc for f, _, _ in eng.THICKENING_TEST_FIELDS):
+                item['lab'].update(eng.validate_thickening_test(qc))
+            if 'compressive' in qc:
+                item['lab']['compressive'] = eng.validate_compressive_test(qc)
+            if 'api_fl' in qc:
+                if type(qc['api_fl']) not in (int, float) or not math.isfinite(qc['api_fl']):
+                    raise ValueError('Independent filtrate must be a finite measured number')
+                # Phase VII's Filtrate number_input has min_value=0.0. Reuse its
+                # existing scalar validator; never copy the dependent API formula.
+                eng.require_nonnegative_number(qc['api_fl'], 'Filtrate @ 30 min')
+                item['lab']['api_fl_collected'] = qc['api_fl']
+            required = full_fields | {'rheology', 'compressive', 'api_fl'} | {f for f, _, _ in eng.THICKENING_TEST_FIELDS if f != 'thickening_enter_time'}
+            if (operator.get('confirmed') is True and temperature_valid and required <= set(qc)
+                    and cement and fluid in cement['slurries']):
+                reference = cement['slurries'][fluid]; inputs = operator['cement_operator']['slurries'][fluid]
+                frame = pd.DataFrame(inputs['additives'], columns=[*phase5.REQUIRED_ADDITIVE_COLUMNS, 'Density'])
+                grid = phase7.build_lab_df_from_phase5(frame, base_cement=inputs['base_cement'],
+                    slurry_weight_pcf=inputs['density_pcf'], slurry_volume_bbl=inputs['client_volume_bbl'],
+                    cmt_sg=inputs['cement_sg'], recalculate_mass=True)
+                params = {'auto_calc': True, 'base_cement': inputs['base_cement'], 'cmt_sg': inputs['cement_sg'], 'cmt_sg_source': 'manual'}
+                state = {'job_type': job, 'fluids_config': {'active': [fluid]},
+                    'fluid_data': {fluid: {'density': reference['density'], 'effective_density': eng.require_positive_density(reference['density'])}},
+                    'cement_params': {fluid: params}, 'cement_additives_dfs': {fluid: frame},
+                    'lab_grid_dfs': {fluid: grid}, 'lab_qc_params': {fluid: qc}, 'well_data': conditions}
+                # Explicit independent confirmation follows construction/validation of this reference.
+                # No live session or prior App approval is read, impersonated or bypassed.
+                qc['reviewed'] = True
+                qc['review_signature'] = eng.lab_review_signature(qc, grid)
+                state['lab_source_signatures'] = {fluid: state_source.lab_source_signature(state, fluid)}
+                issues = state_source.refresh_lab_payloads(state)
+                if issues:
+                    raise ValueError('Original Lab admission failed: ' + ' | '.join(issues))
+                payload = state['lab_payload_' + fluid]
+                item['lab'].update({key: value for key, value in payload.items() if key != 'grid'})
+                item['lab']['fluid_loss'] = payload['api_fl']
+                item['payload_admitted'] = True
+                item['admission_reason'] = 'Original refresh_lab_payloads accepted explicit confirmed independent reference; no measurement prediction'
+        for test, prefix in (('uca', 'uca'), ('crush', 'crush')):
+            selected = item['lab'].get('compressive', {}).get(test, {}).get('selected', False)
+            item['lab'][prefix + '_temp'] = conditions.get('bhst', '-') if selected else '-'
+            item['lab'][prefix + '_pressure'] = conditions.get('bhsp', '-') if selected else '-'
+        # Run the original Word presentation over a template-only copy.
+        item['display'] = report._word_quantity_context({'slurries': [{'name': fluid, 'lab': item['lab']}]})['slurries'][0]['lab']
+    if 'spacer_operator' in operator:
+        sop = operator['spacer_operator']
+        if 'Spacer' not in active or sop.get('job_type') != job or set(sop.get('fluids', {})) - set(active):
+            raise ValueError('Spacer reference belongs to another/inactive job or fluid')
+        sref = fluid_reference(sop)
+        if sref['spacer'] is None:
+            raise ValueError('Explicit configured Standalone Spacer required')
+        if cement:
+            for fluid in set(sref['fluids']) & set(cement['slurries']):
+                if (sref['fluids'][fluid]['volume'] != operator['cement_operator']['slurries'][fluid]['client_volume_bbl']
+                        or sref['fluids'][fluid]['effective_density'] != float(cement['slurries'][fluid]['density'])):
+                    raise ValueError('Conflicting independent cement/Spacer reference inputs')
+        recipe = sref['spacer']['recipe']; sample = spacer_source.lab_sample(recipe)
+        state = {'job_type': job, 'fluids_config': {'active': list(sop['fluids']), 'params': sop['fluids']},
+            'standalone_spacer_config': sop['standalone_spacer']}
+        grid = state_source.spacer_lab_grid(state)
+        if operator.get('confirmed') is True and temperature_valid and 'rheology' in observations.get('Spacer', {}):
+            qc = deepcopy(observations['Spacer'])
+            state.update(well_data=conditions,lab_qc_params={'Spacer':qc})
+            grid = state_source.refresh_spacer_lab(state)
+            qc['reviewed'] = True
+            qc['review_signature'] = eng.lab_review_signature(qc, grid)
+            admitted = state_source.spacer_lab_payload(state)
+            result['fluids']['Spacer']['lab'].update({k:v for k,v in admitted.items() if k!='grid'})
+            result['fluids']['Spacer']['payload_admitted'] = True
+            result['fluids']['Spacer']['admission_reason'] = 'Original spacer_lab_payload accepted the explicitly confirmed independent cup and measured rheology'
+        kinds = {m['name']: m['material_type'] for m in recipe['materials']}
+        lab_rows = [dict(r, **{'Material Type': 'Water' if r['Material'] == 'Fresh Water' else kinds[r['Material']],
+            'Code': r['Material'], 'Lot Number': r['Lot No'], 'Design Unit': r['Unit']}) for r in grid.to_dict('records')]
+        s = dict(sref['spacer'], lab=result['fluids']['Spacer'].get('lab', {'rheology': {}}),
+            lab_rows=lab_rows, lab_mass_g=sample['mass_g'], sample=sample)
+        s['lab'].setdefault('rheology', {})
+        projected = report._word_quantity_context({'has_spacer': True, 'standalone_spacer': s})['standalone_spacer']
+        result['fluids']['Spacer']['display'] = projected['lab']
+        result['spacer'] = dict(s, display=projected)
+    # Read the actual locked template's expressions, unit literals and physical grids.
+    parsed_template = parse_docx(SNAPSHOT/'master_template.docx')
+    if parsed_template['status'] == 'REJECTED':
+        raise ValueError('Locked Lab template unsupported')
+    anchors = {'Test Basic Data', 'Rheology Test', 'Free Water Test | Fluid Loss Test',
+               'Thickening Time Test', 'Compressive Strength Test', 'Spacer Rheology'}
+    contracts = {}
+    mass_headers = {}
+    canonical_anchors = {norm(a): a for a in anchors}
+    for table in tables(parsed_template):
+        anchor = table[0]['table_anchor']
+        if anchor in ('Conventional', 'Additives', 'Spacer Lab Results'):
+            from comparison_records import rows, regular_columns
+            headers = [r for r in rows(table) if regular_columns(r) and norm(r[0]['raw_text']) == 'material type']
+            # Conventional and Additives are subgroups of one physical source table.
+            if headers and len({tuple(norm(c['raw_text']) for c in r) for r in headers}) == 1:
+                mass_headers[anchor] = [r['raw_text'] for r in headers[0]]
+        if norm(anchor) in canonical_anchors:
+            anchor = canonical_anchors[norm(anchor)]
+            if anchor in contracts:
+                raise ValueError('Ambiguous locked Lab template anchor')
+            contracts[anchor] = [{'row': r['locator']['row'], 'column': r['locator']['column'],
+                'span': r['locator']['column_span'], 'text': r['raw_text']} for r in table]
+    if set(contracts) != anchors:
+        raise ValueError('Missing locked Lab template contract')
+    result['template_contracts'] = contracts
+    result['mass_headers'] = mass_headers
+    result['template_sha256'] = hashlib.sha256((SNAPSHOT/'master_template.docx').read_bytes()).hexdigest()
+    return result
+
+
+def render_lab_fixture(reference, destination):
+    from docxtpl import DocxTemplate
+    import phase_10_procedure as report
+    cement = reference['cement_reference']; slurries = []
+    for fluid in report.REPORT_SLURRY_ORDER:
+        if fluid not in reference['fluids']:continue
+        item = reference['fluids'][fluid]
+        if item['role'] != 'ordinary_lab':
+            continue
+        base = cement['slurries'].get(fluid) if cement else None
+        row = {'name': fluid, 'lab': item['lab'], 'lab_conventional': [], 'lab_additives': [], 'blends': [], 'additives': []}
+        if base:
+            calc = base['calc']
+            row.update(density_pcf=base['density'], volume_bbl=cement['operator_inputs']['slurries'][fluid]['client_volume_bbl'],
+                yield_cuft_sk=calc['yield_ft3_per_sk'], solution=calc['field_solution_bbl'],
+                blends=base['blend'], additives=base['additives'])
+            # Original separate_lab_tables and build_master_context projection; no new recipe.
+            import pandas as pd
+            import phase_5_cement as phase5
+            import phase_7_lab as phase7
+            op = cement['operator_inputs']['slurries'][fluid]
+            frame = pd.DataFrame(op['additives'], columns=[*phase5.REQUIRED_ADDITIVE_COLUMNS, 'Density'])
+            grid = phase7.build_lab_df_from_phase5(frame, base_cement=op['base_cement'], slurry_weight_pcf=op['density_pcf'],
+                slurry_volume_bbl=op['client_volume_bbl'], cmt_sg=op['cement_sg'], recalculate_mass=True)
+            conventional, additives = report.separate_lab_tables(grid, frame)
+            row['lab_conventional'] = [dict(r, Name=r['Material Type']) for r in conventional]
+            row['lab_additives'] = [dict(r, Name=r['Material Type']) for r in additives]
+        slurries.append(row)
+    context = {'slurries': slurries, 'well_data': {}, 'hardware': [], 'fluids_train': [],
+        'has_preflush': False, 'has_spacer': reference['spacer'] is not None, 'has_scavenger': False,
+        'executive_summary': 'SYNTHETIC C07 source-rendered control. Observations independently specified; NOT measured production evidence.',
+        'procedure_steps': []}
+    if reference['spacer']:
+        s = reference['spacer']
+        context['standalone_spacer'] = dict(s, volume=s['volume_display'], density=s['density_display'], note_mix=s['note_mix'])
+    template = DocxTemplate(str(SNAPSHOT/'master_template.docx'))
+    template.render(report._escape_xml_special_chars(report._word_quantity_context(context)))
+    template.save(str(destination))
+
+
 def run(payload):
     from tools.provision import verify_candidate
     verify_candidate(ROOT)
     verify_source()
     sys.path.insert(0, str(SNAPSHOT))
     calls = set()
+    before_input = json.dumps(payload['operator'], sort_keys=True, allow_nan=False)
 
     def trace(frame, event, arg):
         name = frame.f_code.co_filename
@@ -243,14 +474,17 @@ def run(payload):
 
     sys.settrace(trace)
     try:
-        if payload['action'] not in ('fluids', 'render_fluids', 'well', 'render_well'):
+        if payload['action'] not in ('fluids', 'render_fluids', 'well', 'render_well', 'lab', 'render_lab'):
             raise ValueError('Unsupported source action')
-        reference = well_reference(payload['operator']) if payload['action'] in ('well', 'render_well') else fluid_reference(payload['operator'])
+        function = lab_reference if payload['action'] in ('lab', 'render_lab') else well_reference if payload['action'] in ('well', 'render_well') else fluid_reference
+        reference = function(payload['operator'])
+        if reference.get('cement_reference'):
+            calls.update(reference['cement_reference']['source_calls'])
         if payload['action'].startswith('render_'):
             destination = Path(payload['docx']).absolute()
             if destination.suffix != '.docx' or not destination.is_relative_to(ROOT / 'tmp') or destination.resolve() != destination or destination.exists():
                 raise ValueError('New synthetic DOCX must remain under runtime/tmp without symlinks')
-            renderer = render_well_fixture if payload['action'] == 'render_well' else render_fluid_fixture
+            renderer = render_lab_fixture if payload['action'] == 'render_lab' else render_well_fixture if payload['action'] == 'render_well' else render_fluid_fixture
             renderer(reference, destination)
         origins = {}
         for path in SNAPSHOT.glob('*.py'):
@@ -259,9 +493,18 @@ def run(payload):
                 if Path(module.__file__).resolve() != path.resolve():
                     raise ValueError('Non-snapshot sibling import: ' + path.stem)
                 origins[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+        if json.dumps(payload['operator'], sort_keys=True, allow_nan=False) != before_input:
+            raise ValueError('Independent operator reference mutated by source')
+        if payload['action'] in ('lab', 'render_lab'):
+            def omit_excluded(value):
+                if isinstance(value, dict):
+                    return {k: omit_excluded(v) for k,v in value.items() if k.casefold() != 'iod'}
+                if isinstance(value, list):return [omit_excluded(v) for v in value]
+                return value
+            reference = omit_excluded(reference)
         return {'source_sha': SOURCE_SHA, 'reference': reference, 'source_calls': sorted(calls),
             'source_module_sha256': origins,
-            'operator_input_sha256': hashlib.sha256(json.dumps(payload['operator'], sort_keys=True, allow_nan=False).encode()).hexdigest()}
+            'operator_input_sha256': hashlib.sha256(before_input.encode()).hexdigest()}
     finally:
         sys.settrace(None)
 
