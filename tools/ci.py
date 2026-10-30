@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -43,6 +44,24 @@ def capture_checkout(root, destination):
         raise ValueError('GitHub run/attempt required')
     destination.write_text(json.dumps(identity,sort_keys=True,indent=2))
     return identity
+
+def workflow_policy(event, ref, base_ref):
+    if event=='pull_request' and base_ref=='main' and re.fullmatch(r'refs/pull/[1-9][0-9]*/merge',ref):
+        return 'PR_FULL'
+    if event=='push' and ref=='refs/heads/main' and base_ref=='':
+        return 'MAIN_FAST_ONLY'
+    raise ValueError('Unsupported workflow event/ref/base')
+
+def dependency_gate(event, ref, base_ref, needs):
+    mode=workflow_policy(event,ref,base_ref)
+    if type(needs) is not dict or set(needs)!={'fast-gate','focused'}:
+        raise ValueError('Missing/unknown workflow dependencies')
+    expected={'fast-gate':'success','focused':'success' if mode=='PR_FULL' else 'skipped'}
+    for name,result in expected.items():
+        if type(needs[name]) is not dict or needs[name].get('result')!=result:
+            raise ValueError('Unexpected dependency result: '+name)
+    # PR success here only admits the unchanged full artifact-certification path.
+    return {'mode':mode,'dependencies_valid':True,'full_regression_certified':False}
 
 def execution_identity(root=ROOT):
     locks=lock_identity(root)
@@ -173,12 +192,18 @@ def execute(root,args,output):
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument('action',choices=['checkout','collect','run','seal','certify'])
+    parser.add_argument('action',choices=['checkout','gate','collect','run','seal','certify'])
     parser.add_argument('--shard',choices=list('ABC'))
     parser.add_argument('--evidence',type=Path)
     args=parser.parse_args()
     schedule=load_schedule()
+    if args.action=='gate':
+        print(json.dumps(dependency_gate(os.environ['GITHUB_EVENT_NAME'],os.environ['GITHUB_REF'],
+            os.environ.get('GITHUB_BASE_REF',''),json.loads(os.environ['CHECKER_NEEDS_JSON']))))
+        return
     if args.action=='checkout':
+        if os.environ.get('GITHUB_ACTIONS')=='true':
+            workflow_policy(os.environ['GITHUB_EVENT_NAME'],os.environ['GITHUB_REF'],os.environ.get('GITHUB_BASE_REF',''))
         print(json.dumps(capture_checkout(ROOT,Path(os.environ['CHECKER_CHECKOUT_PROOF']))))
         return
     identity=execution_identity()
