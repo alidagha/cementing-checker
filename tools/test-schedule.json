@@ -16,6 +16,7 @@
   ],
   "C": [
     "c03/test_c03.py",
-    "tests/test_c07.py"
+    "tests/test_c07.py",
+    "tests/test_g06b.py"
   ]
 }
