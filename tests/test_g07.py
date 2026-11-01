@@ -403,6 +403,58 @@ def ui_boundary(controls, monkeypatch):
         config.set_option('browser.gatherUsageStats', previous)
 
 
+@pytest.fixture(scope='module')
+def procedure_control():
+    from test_c08 import operator
+    from narrative_source import request
+    program = operator('CSG 7"')
+    op = {'program': program, 'preparation': {'Main': {
+        'tank_name': 'Mud Reserve Tanks', 'dead_volume_bbl': 5,
+        'surface_hardened_hours': 8}},
+        'well_geometry': {'version': 1, 'type': 'Vertical', 'td_m': 1000}}
+    with tempfile.TemporaryDirectory(dir=g.ROOT/'tmp', prefix='g08a3-control-') as folder:
+        path = Path(folder)/'source.docx'
+        source = request(op, 'render_procedure', str(path))
+        inputs = submitted(program['cement_operator'])
+        inputs['fluids'] = {'job_type': program['job_type'], 'mud_type': 'WBM',
+                            'fluids': deepcopy(program['fluids'])}
+        inputs['hardware'] = {'job_type': program['job_type'],
+                              'hardware': deepcopy(program['hardware'])}
+        inputs['procedure'] = op
+        yield path.read_bytes(), inputs, source
+
+
+def test_c09_selected_source_route_and_readonly_receipt(procedure_control):
+    original, inputs, source = procedure_control
+    session = g.PrivateSession(); path = session.store('procedure.docx', original)
+    draft = {'procedure': procedure_context(inputs['procedure'])}
+    revision = g.submission_revision(original, 'procedure.docx', inputs, draft)
+    session.invalidate(revision)
+    result = session.check(path, deepcopy(inputs), revision=revision, draft=draft)
+    assert 'C09' in result['results']
+    c09 = result['results']['C09']
+    assert any(f['field'] == 'procedure' and f['result'] == 'MATCH' and f['locator']
+               for f in c09['findings'])
+    assert any(f['field'] == 'ordered_notes' and f['result'] == 'MATCH'
+               and f['slurry'] == 'Main' for f in c09['findings'])
+    assert c09['reference']['operator_input_sha256'] == source['operator_input_sha256']
+    assert 'C09' in result['completed_adapters']
+    assert result['receipt']['C09_operator_sha256'] == g.digest(inputs['procedure'])
+    assert result['receipt']['C09_status'] == 'PARTIAL_FINDINGS_ONLY'
+    assert result['status'] == 'PARTIAL_FINDINGS_ONLY'
+    assert result['docx_written'] is result['word_modified'] is False
+    assert path.read_bytes() == original
+    assert result['receipt']['widget_snapshot'] == draft
+    assert session.current() == result
+    other = g.PrivateSession(); other.result = result; other.document = path
+    with pytest.raises(ValueError): other.current()
+    incomplete = deepcopy(draft); incomplete['procedure']['roles']['Main']['surface_hardened_hours'] = None
+    revised = g.submission_revision(original, 'procedure.docx', inputs, incomplete)
+    assert session.invalidate(revised) and session.current() is None
+    with pytest.raises(ValueError, match='committed independent draft'):
+        session.check(path, deepcopy(inputs), revision=revised, draft=incomplete)
+
+
 def ready_boundary_page(ui_boundary):
     make_page, _ = ui_boundary
     app = make_page().run()
@@ -569,3 +621,153 @@ def test_ui_editors_preserve_source_numeric_types_and_text_syntax(editor):
         assert app.button[0].disabled
     finally:
         config.set_option('browser.gatherUsageStats', previous)
+
+
+def procedure_context(operator):
+    p = operator['program']; pc = p['placement_config']
+    return {'selected': True, 'well_type': operator['well_geometry']['type'],
+        'td_m': operator['well_geometry']['td_m'], 'geo_md': p['geo_md'],
+        'target_mode': pc['target_row'], 'target_depth_m': pc['manual_depth_m'],
+        'excess_mode': pc['chart_excess_mode'], 'excess': {}, 'no_additional_context': True,
+        'roles': {name: {**setup, 'top_mode': p['tops'][name]['top_mode'],
+            'top_depth': p['tops'][name]['top_depth'],
+            'volume_basis': p['executive_summary_config']['per_slurry'][name]['volume_basis']}
+            for name, setup in operator['preparation'].items()}}
+
+
+@pytest.fixture(scope='module')
+def procedure_catalog():
+    return g.catalog()
+
+
+@pytest.mark.parametrize('missing', ['td_m', 'geo_md', 'target_depth_m', 'target_mode',
+    'no_additional_context', 'hardware', 'fluids', 'top_mode', 'volume_basis',
+    'dead_volume_bbl', 'surface_hardened_hours', 'apply_excess'])
+def test_c09_incomplete_independent_context_is_not_synthesized(procedure_control, procedure_catalog, missing):
+    _, inputs, _ = procedure_control; inputs = deepcopy(inputs)
+    context = procedure_context(inputs['procedure'])
+    if missing in ('hardware', 'fluids'): inputs[missing] = None
+    elif missing in context: context[missing] = None
+    elif missing == 'apply_excess': context['excess_mode'] = 'apply'
+    else: context['roles']['Main'][missing] = None
+    op, status = g.procedure_input(inputs, context, procedure_catalog)
+    assert op is None and status.startswith('NOT_RUN / NOT_VERIFIABLE')
+
+
+def test_c09_catalog_identity_zero_and_surface_choice(procedure_control, procedure_catalog):
+    _, inputs, _ = procedure_control; context = procedure_context(inputs['procedure'])
+    op, status = g.procedure_input(inputs, context, procedure_catalog)
+    assert op == inputs['procedure'] and status.startswith('READY')
+    assert 'Mud Reserve Tanks' in procedure_catalog['procedure']['tanks']['CSG 7"']
+    assert set(procedure_catalog['procedure']['well_types']) == {'Vertical', 'Directional'}
+    context['roles']['Main'].update(dead_volume_bbl=0, surface_hardened_hours=0, top_mode='Surface', top_depth=None)
+    op, _ = g.procedure_input(inputs, context, procedure_catalog)
+    assert op['preparation']['Main']['dead_volume_bbl'] == op['preparation']['Main']['surface_hardened_hours'] == 0
+    assert op['program']['tops']['Main']['top_depth'] == 0
+    assert g.procedure_input(inputs, {'selected': False}, procedure_catalog)[0] is None
+
+
+@pytest.mark.parametrize('unsupported', ['Directional', 'CMT PLUG', 'Pre Flush', 'crossed_volume'])
+def test_c09_unsupported_or_crossed_inputs_do_not_become_reference(procedure_control, procedure_catalog, unsupported):
+    _, inputs, _ = procedure_control; inputs = deepcopy(inputs)
+    context = procedure_context(inputs['procedure'])
+    if unsupported == 'Directional': context['well_type'] = unsupported
+    elif unsupported == 'CMT PLUG': inputs['job_type'] = unsupported
+    elif unsupported == 'Pre Flush': inputs['active_fluids'].insert(0, unsupported)
+    else: inputs['fluids']['fluids']['Main']['volume'] = 49
+    op, status = g.procedure_input(inputs, context, procedure_catalog)
+    assert op is None and 'NOT_VERIFIABLE' in status
+
+
+@pytest.mark.parametrize('failure', ['timeout', 'refused', 'source_rejected', 'crossed_operator'])
+def test_c09_failure_preserves_other_adapters_and_safe_coverage(procedure_control, monkeypatch, failure):
+    import c09_procedure
+    from subprocess import TimeoutExpired
+    original, inputs, _ = procedure_control; inputs = deepcopy(inputs)
+    if failure == 'crossed_operator':
+        inputs['procedure']['program']['fluids']['Main']['volume'] = 49
+        monkeypatch.setattr(c09_procedure, 'compare_document', lambda *args: pytest.fail('Crossed reference was dispatched'))
+    elif failure == 'source_rejected':
+        inputs['procedure']['preparation']['Main']['surface_hardened_hours'] = -1
+    else:
+        def unavailable(*args):
+            if failure == 'timeout': raise TimeoutExpired('/private/secret-worker', 90, stderr='PRIVATE-C09-STDERR')
+            raise ValueError('/private/secret-worker PRIVATE-C09-STDERR')
+        monkeypatch.setattr(c09_procedure, 'compare_document', unavailable)
+    session = g.PrivateSession(); path = session.store('source.docx', original)
+    result = session.check(path, inputs)
+    assert {'C02', 'C03', 'C05', 'C06'} <= set(result['completed_adapters'])
+    assert 'C09' not in result['completed_adapters'] and 'NOT_VERIFIABLE' in result['availability']['C09']
+    assert 'PRIVATE-C09-STDERR' not in json.dumps(result) and '/private/secret-worker' not in json.dumps(result)
+    assert result['run_outcome'] == 'PARTIAL_FINDINGS_ONLY' and path.read_bytes() == original
+
+
+@pytest.mark.parametrize('mutation', ['hours', 'hidden'])
+def test_c09_physical_note_conflict_and_visibility_keep_safe_message(procedure_control, mutation):
+    original, inputs, _ = procedure_control; session = g.PrivateSession()
+    path = session.store('source.docx', original); document = Document(path)
+    para = next(p for p in document.paragraphs if 'Surface Sample:' in p.text)
+    if mutation == 'hours': para.text = para.text.replace('8 Hours', '80 Hours')
+    else: para.runs[0]._r.get_or_add_rPr().append(OxmlElement('w:vanish'))
+    changed = session.folder/'mutated.docx'; document.save(changed)
+    path = session.store('independent.docx', changed.read_bytes()); result = session.check(path, deepcopy(inputs))
+    if mutation == 'hours':
+        assert any(f['result'] == 'DISCREPANCY' and f['locator'] for f in result['results']['C09']['findings'])
+        assert 'manual review' in result['message'] and 'No discrepancies detected' not in result['message']
+        assert 'Observed After 8 Hours' not in result['message']
+    else:
+        assert 'C09' not in result['completed_adapters'] and 'NOT_VERIFIABLE' in result['availability']['C09']
+    assert result['docx_written'] is result['word_modified'] is False
+    assert session.folder.joinpath(sha256(original).hexdigest() + '.docx').read_bytes() == original
+
+
+def test_c09_two_source_slurries_keep_distinct_tops_tanks_and_observations(procedure_control, procedure_catalog):
+    from narrative_source import request
+    _, original_inputs, _ = procedure_control; inputs = deepcopy(original_inputs); op = inputs['procedure']; p = op['program']
+    recipe = p['cement_operator']['slurries']['Main']
+    recipes = {'Lead': {**deepcopy(recipe), 'client_volume_bbl': 40},
+               'Tail': {**deepcopy(recipe), 'client_volume_bbl': 10, 'density_pcf': 118}}
+    p['cement_operator'] = {'job_type': p['job_type'], 'active_fluids': ['Lead', 'Tail'], 'slurries': recipes}
+    p['fluids'] = {'Lead': {'volume': 40, 'density': 104, 'pump_rate': 2}, 'Tail': {'volume': 10, 'density': 118, 'pump_rate': 2}}
+    p['tops'] = {n: {'top_job_type': p['job_type'], 'top_mode': 'Depth (m MD)', 'top_depth': v}
+                 for n, v in (('Lead', 800), ('Tail', 900))}
+    p['executive_summary_config']['per_slurry'] = {n: {'volume_basis': 'client_request'} for n in recipes}
+    op['preparation'] = {'Lead': {'tank_name': 'Mud Reserve Tanks', 'dead_volume_bbl': 5, 'surface_hardened_hours': 8},
+        'Tail': {'tank_name': 'Batch Mixer Tanks', 'dead_volume_bbl': 2, 'surface_hardened_hours': 10}}
+    inputs.update(active_fluids=['Lead', 'Tail'], cement=p['cement_operator'])
+    inputs['fluids']['fluids'] = p['fluids']
+    bound, _ = g.procedure_input(inputs, procedure_context(op), procedure_catalog); assert bound == op
+    with tempfile.TemporaryDirectory(dir=g.ROOT/'tmp') as folder:
+        path = Path(folder)/'two.docx'; request(op, 'render_procedure', str(path)); original = path.read_bytes()
+        session = g.PrivateSession(); stored = session.store('two.docx', original); result = session.check(stored, inputs)
+        notes = [f for f in result['results']['C09']['findings'] if f['field'] == 'ordered_notes' and 'Mix above' in str(f.get('source_wording'))]
+        assert {f['slurry'] for f in notes if f['result'] == 'MATCH'} == {'Lead', 'Tail'}
+        assert result['receipt']['inputs_snapshot']['procedure']['preparation'] == op['preparation']
+        assert stored.read_bytes() == original
+
+
+def test_ui_c09_incomplete_draft_invalidates_without_blocking_cement(ui_boundary, controls):
+    make_page, _ = ui_boundary
+    app = make_page().run(); op = controls['op']; item = op['slurries']['Main']; job = op['job_type']
+    app.selectbox(key='job').select(job).run(); app.selectbox(key='mud').select('WBM').run()
+    app.multiselect(key=f'active:{job}:WBM').select('Main').run()
+    app.checkbox(key=f'{job}:Main:neat').check().run()
+    app.number_input(key=f'{job}:Main:volume').set_value(item['client_volume_bbl']).run()
+    app.number_input(key=f'{job}:Main:density').set_value(item['density_pcf']).run()
+    app.selectbox(key=f'{job}:Main:base').select(item['base_cement']).run()
+    app.number_input(key=f'{job}:Main:sg').set_value(item['cement_sg']).run()
+    app.checkbox(key='c09:selected').check().run()
+    app.selectbox(key=f'c09:{job}:well_type').select('Vertical').run()
+    assert not app.exception and not app.button[0].disabled
+    app.button[0].click().run()
+    report = app.session_state['_private'].current()
+    assert {'C02', 'C03'} <= set(report['completed_adapters']) and 'C09' not in report['completed_adapters']
+    assert report['availability']['C09'].startswith('NOT_RUN')
+    old_revision = report['receipt']['revision']
+    app.number_input(key=f'c09:{job}:td').set_value(0).run()
+    session = app.session_state['_private']
+    assert session.revision != old_revision and session.current() is None
+    assert not any(t.label == 'Engineer message' for t in app.text_area)
+    revision = session.revision; app.run()
+    assert app.number_input(key=f'c09:{job}:td').value == 0 and session.revision == revision
+    assert session.current() is None and not app.exception

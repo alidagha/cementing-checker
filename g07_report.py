@@ -20,7 +20,7 @@ import c04_runtime
 
 LIMIT = 32 * 1024 * 1024
 BLOCKED = {
-    'C09': 'NOT_RUN / NOT_VERIFIABLE: complete independent placement/program/preparation context is not supplied by this page.',
+    'C09': 'NOT_RUN / NOT_VERIFIABLE: optional independent Procedure/NOTES context is not selected or complete.',
     'G06-A/B': 'NOT_RUN: no bound what-if request selected; inferred DV is not a measured heel.',
     'C10': 'NOT_RUN: no correction or DOCX-copy transaction selected.',
     'Advanced domains': 'NOT_VERIFIABLE: automatic Summary/Procedure, placement/excess/geothermal, complete measured Lab/rheology, Spacer formulation and CT stage cascades require further independent context.'}
@@ -77,6 +77,70 @@ def clean_rows(rows):
             (isinstance(v, float) and math.isnan(v)) and not (isinstance(v, str) and not v.strip())}
         if item: result.append(item)
     return result
+
+
+def procedure_input(inputs, context, source_catalog):
+    """Bind the optional UI subset to existing independent adapter inputs."""
+    if not context.get('selected'):
+        return None, BLOCKED['C09']
+    options = source_catalog['procedure']; job = inputs.get('job_type')
+    active = inputs.get('active_fluids', [])
+    if job not in options['jobs'] or not active or set(active)-set(options['roles']):
+        return None, 'NOT_RUN / NOT_VERIFIABLE: this C09 page supports ordinary casing cement roles only; other job/fluid NOTE contexts are not collected.'
+    if context.get('well_type') != 'Vertical':
+        return None, 'NOT_RUN / NOT_VERIFIABLE: this C09 page requires an independently selected Vertical well; directional survey context is not collected.'
+    cop, fop, hop = (inputs.get(k) for k in ('cement', 'fluids', 'hardware'))
+    if not cop or not fop or not hop or not context.get('no_additional_context'):
+        return None, 'NOT_RUN / NOT_VERIFIABLE: complete independent cement, fluid rates, hardware and explicit summary-context choice are required.'
+    if any(context.get(k) is None for k in ('td_m', 'geo_md', 'target_depth_m', 'target_mode', 'excess_mode')):
+        return None, 'NOT_RUN / NOT_VERIFIABLE: independent well/MD/placement/excess inputs are incomplete.'
+    if (context['target_mode'] != options['manual_target'] or context['excess_mode'] not in options['excess_modes']
+            or set(context.get('roles', {})) != set(cop['slurries'])):
+        return None, 'NOT_RUN / NOT_VERIFIABLE: source placement choices or exact active roles are unproved.'
+    excess = context.get('excess', {})
+    if context['excess_mode'] == 'apply' and any(excess.get(k) is None for k, _ in options['excess_fields']):
+        return None, 'NOT_RUN / NOT_VERIFIABLE: explicit source excess percentages are incomplete.'
+    tops = {}; preparation = {}; metadata = {}
+    for role, item in context['roles'].items():
+        if (item.get('top_mode') not in options['top_modes'] or item.get('volume_basis') not in options['volume_bases']
+                or item.get('tank_name') not in options['tanks'][job]
+                or any(item.get(k) is None for k in ('dead_volume_bbl', 'surface_hardened_hours'))
+                or item.get('top_mode') != 'Surface' and item.get('top_depth') is None):
+            return None, 'NOT_RUN / NOT_VERIFIABLE: per-role Top/basis/tank/DV/observed hours are incomplete.'
+        tops[role] = {'top_job_type': job, 'top_mode': item['top_mode'],
+                      'top_depth': 0 if item['top_mode'] == 'Surface' and item.get('top_depth') is None else item['top_depth']}
+        metadata[role] = {'volume_basis': item['volume_basis']}
+        preparation[role] = {k: item[k] for k in ('tank_name', 'dead_volume_bbl', 'surface_hardened_hours')}
+    operator = {'program': {'job_type': job, 'geo_md': context['geo_md'],
+        'hardware': hop['hardware'], 'fluids': fop['fluids'], 'cement_operator': cop,
+        'placement_config': {'job_type': job, 'target_row': context['target_mode'],
+                             'manual_depth_m': context['target_depth_m'], 'chart_excess_mode': context['excess_mode'], **excess},
+        'tops': tops, 'executive_summary_config': {'version': options['summary_version'],
+            'job_type': job, 'placement_context_rows': [], 'per_slurry': metadata}},
+        'preparation': preparation, 'well_geometry': {'version': options['well_version'],
+            'type': context['well_type'], 'td_m': context['td_m']}}
+    if not procedure_identity(inputs, operator, source_catalog):
+        return None, 'NOT_RUN / NOT_VERIFIABLE: independent job/fluid order/roles/quantities do not agree.'
+    return operator, 'READY: accepted C09 source validation will run only on Run Check.'
+
+
+def procedure_identity(inputs, operator, source_catalog):
+    """No independently submitted program may cross the selected adapter identities."""
+    try:
+        p = operator['program']; job = inputs['job_type']; active = inputs['active_fluids']
+        return (set(operator) == {'program', 'preparation', 'well_geometry'}
+            and job in source_catalog['procedure']['jobs']
+            and active == [n for n in source_catalog['order'] if n in active]
+            and set(active) <= set(source_catalog['procedure']['roles'])
+            and p['job_type'] == job == inputs['fluids']['job_type'] == inputs['hardware']['job_type']
+            and p['cement_operator'] == inputs['cement'] and inputs['cement']['active_fluids'] == active
+            and set(inputs['cement']['slurries']) == set(active) == set(p['fluids'])
+            and p['fluids'] == inputs['fluids']['fluids'] and p['hardware'] == inputs['hardware']['hardware']
+            and set(operator['preparation']) == set(active) and operator['well_geometry']['type'] == 'Vertical'
+            and all(p['fluids'][n]['volume'] == inputs['cement']['slurries'][n]['client_volume_bbl']
+                    and p['fluids'][n]['density'] == inputs['cement']['slurries'][n]['density_pcf'] for n in active))
+    except (KeyError, TypeError):
+        return False
 
 
 def catalog():
@@ -181,6 +245,37 @@ class PrivateSession:
                 raise Refusal('Adapter returned stale document evidence')
             availability[name] = result['status']
             if result['status']=='PARTIAL_FINDINGS_ONLY':completed.append(name)
+        procedure = submitted.get('procedure')
+        c09_status = BLOCKED['C09']; c09_operator_sha = None
+        if widget_snapshot is not None and 'procedure' in widget_snapshot:
+            expected, c09_status = procedure_input(submitted, widget_snapshot['procedure'], self.source_catalog)
+            if expected != procedure:
+                raise Refusal('C09 submitted operator does not match the committed independent draft')
+        if procedure is not None:
+            if admission['status'] != 'SOURCE_ADMITTED' or not procedure_identity(submitted, procedure, self.source_catalog):
+                c09_status = 'NOT_RUN / NOT_VERIFIABLE: C09 requires matching, source-admitted independent cement/fluid/hardware inputs.'
+            else:
+                from c09_procedure import compare_document as procedure_compare
+                c09_operator_sha = digest(procedure)
+                try:
+                    result = procedure_compare(path, procedure)
+                except (subprocess.TimeoutExpired, ValueError, OSError, KeyError, TypeError):
+                    result = {'status': 'PARTIAL_FINDINGS_ONLY', 'findings': [{'field': 'procedure_and_notes',
+                        'locator': None, 'result': 'NOT_VERIFIABLE',
+                        'reason': 'C09 source reference timed out, was unavailable or rejected; no Procedure/NOTES comparison is credited.'}]}
+                for finding in result.get('findings', []):
+                    if finding.get('field') == 'procedure_and_notes' and not finding.get('source_function'):
+                        finding['reason'] = 'C09 source reference or physical narrative association is unproved; manual review required.'
+                source = result.get('reference', {})
+                if source and (source.get('source_sha') != pins['source_sha'] or source.get('operator_input_sha256') != c09_operator_sha):
+                    raise Refusal('C09 source/operator identity drift')
+                if result.get('source_document_sha256', sha256(original).hexdigest()) != sha256(original).hexdigest():
+                    raise Refusal('C09 document identity drift')
+                results['C09'] = result
+                qualified = source and any(f.get('result') in ('MATCH', 'DISCREPANCY') for f in result.get('findings', []))
+                c09_status = 'PARTIAL_FINDINGS_ONLY' if qualified else 'NOT_VERIFIABLE: no source-backed Procedure/NOTES comparison completed.'
+                if qualified: completed.append('C09')
+        availability['C09'] = c09_status
         if identities() != pins or safe_input(path) != original or digest(inputs) != input_sha:
             raise Refusal('Document, independent inputs or source changed during checking')
         rejected=any(r['status']!='PARTIAL_FINDINGS_ONLY' for r in results.values())
@@ -207,6 +302,7 @@ class PrivateSession:
             'source_sha':pins['source_sha'],'cement_admission':admission,'cement_source_attempted':source_attempted,
             'C02_status':results.get('C03',{}).get('c02',{}).get('status','INPUT_REJECTED' if source_attempted else 'NOT_RUN'),
             'C03_status':results.get('C03',{}).get('status','INPUT_REJECTED' if source_attempted else 'NOT_RUN'),
+            'C09_operator_sha256':c09_operator_sha, 'C09_status':c09_status,
             'sacks_findings':[f for f in results.get('C03',{}).get('c02',{}).get('findings',[]) if f['field']=='sacks']}
         report['message']=engineer_message(report)
         report['report_id']=report_identity(report);report['receipt']['report_id']=report['report_id']
@@ -308,7 +404,20 @@ if __name__ == '__main__' and sys.argv[1:] == ['--catalog']:
     install_audit(); verify_source(); sys.path.insert(0, str(SNAPSHOT))
     import materials_db as db
     import project_state
+    import placement, well_profile, cement_chart_model
+    from narrative_source import summary_reference
+    # These validators expose no public enum constants; read their locked literals.
+    def choices(function, member):
+        return next(list(c) for c in function.__code__.co_consts if isinstance(c, tuple) and member in c)
     print(json.dumps({'jobs': db.JOB_TYPES, 'order': db.HYDRAULIC_EXECUTION_ORDER,
         'cement_roles': db.CEMENT_FORMULATION_FLUIDS, 'cement_names': [name for name in db.CEMENT_SG_REFERENCE],
         'hardware_fields': HARDWARE_FIELDS, 'hardware_descriptions': db.HARDWARE_DESCRIPTIONS,
-        'eligible': {job: {mud: project_state.available_fluid_types({'job_type': job, 'mud_type': mud}) for mud in ('WBM', 'OBM')} for job in db.JOB_TYPES}}, allow_nan=False))
+        'eligible': {job: {mud: project_state.available_fluid_types({'job_type': job, 'mud_type': mud}) for mud in ('WBM', 'OBM')} for job in db.JOB_TYPES},
+        'procedure': {'jobs': [job for job, kind in cement_chart_model.CHART_JOBS.items() if kind == 'casing'],
+            'roles': db.PLACEMENT_SLURRIES, 'tanks': {job: db.get_available_tanks(job) for job in db.JOB_TYPES},
+            'well_types': [v for v in choices(well_profile.validate_well_inputs, 'Vertical') if v is not None],
+            'well_version': well_profile.geometry_defaults()['version'], 'summary_version': placement.SUMMARY_VERSION,
+            'volume_bases': placement.VOLUME_BASES, 'top_modes': choices(summary_reference, 'Surface'),
+            'manual_target': next(c for c in placement.target_depth.__code__.co_consts if c == '__manual__'),
+            'excess_modes': choices(cement_chart_model.validate_chart_inputs, 'ignore'),
+            'excess_fields': [(key, label) for key, label, _ in placement.EXCESS_FIELDS]}}, allow_nan=False))

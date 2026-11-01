@@ -99,11 +99,41 @@ def main():
         confirmed = st.checkbox('I confirm this reference was independently approved', key=f'approved:{job}')
     sop = {'job_type': job, 'manual_summary': {'text': text, 'approval_reference': approval, 'text_sha256': sha256(text.encode()).hexdigest()}} if job and text.strip() and approval.strip() and confirmed else None
     inputs = {'job_type':job,'mud_type':mud,'active_fluids':active,'cement': cop, 'fluids': fop, 'hardware': hop if hardware_on else None, 'lab': lop, 'summary': sop}
+    with st.expander('Optional independent Procedure and ordered NOTES (C09)'):
+        procedure = {'selected': st.checkbox('Check source-backed Procedure and ordered NOTES', key='c09:selected')}
+        if procedure['selected']:
+            options = catalog['procedure']; prefix = f'c09:{job}:'
+            procedure.update(
+                well_type=st.selectbox('C09 canonical well type', options['well_types'], index=None, key=prefix+'well_type'),
+                td_m=st.number_input('C09 independent vertical well depth (m)', value=None, key=prefix+'td'),
+                geo_md=st.number_input('C09 independent measured MD (m)', value=None, key=prefix+'md'),
+                target_mode=st.selectbox('C09 placement target', [options['manual_target']], index=None,
+                    format_func=lambda _: 'Independent manual target depth', key=prefix+'target_mode'),
+                target_depth_m=st.number_input('C09 independent placement target depth (m MD)', value=None, key=prefix+'target'),
+                excess_mode=st.selectbox('C09 source excess mode', options['excess_modes'], index=None, key=prefix+'excess_mode'),
+                no_additional_context=st.checkbox('C09 summary context has no additional hardware qualifiers', key=prefix+'context'),
+                excess={}, roles={})
+            if procedure['excess_mode'] == 'apply':
+                for field, label in options['excess_fields']:
+                    procedure['excess'][field] = st.number_input('C09 '+label, value=None, key=prefix+field)
+            for role in active:
+                if role not in options['roles']: continue
+                key = prefix+role+':'
+                procedure['roles'][role] = {
+                    'top_mode': st.selectbox('C09 '+role+' Top mode', options['top_modes'], index=None, key=key+'top_mode'),
+                    'top_depth': st.number_input('C09 '+role+' Top depth (m MD; Surface permits blank or zero)', value=None, key=key+'top'),
+                    'volume_basis': st.selectbox('C09 '+role+' volume basis', options['volume_bases'], index=None, key=key+'basis'),
+                    'tank_name': st.selectbox('C09 '+role+' mixing tank', options['tanks'].get(job, []), index=None, key=key+'tank'),
+                    'dead_volume_bbl': st.number_input('C09 '+role+' explicit dead volume (bbl)', value=None, key=key+'dead'),
+                    'surface_hardened_hours': st.number_input('C09 '+role+' observed surface-hardened hours', value=None, key=key+'hours')}
+            st.caption('Uses the independently entered cement, fluid rates and hardware above. Vertical ordinary casing only; no measurements or Word corrections are generated.')
+        inputs['procedure'], procedure_status = report.procedure_input(inputs, procedure, catalog)
+        if procedure['selected']: st.text('C09: '+procedure_status)
     # Include incomplete drafts, not just admitted operators, in stale-result invalidation.
     draft = {'job': job, 'mud': mud, 'active': active, 'fluid_inputs': fluid_inputs, 'slurries': slurries,
         'hardware_on': hardware_on, 'hardware': hardware, 'lab_on': lab_on, 'conditions': conditions,
         'measurements': measurements, 'measured_fluid': measured_fluid, 'neat_confirmations':neat_confirmations,
-        'summary_text': text, 'approval': approval, 'confirmed': confirmed}
+        'summary_text': text, 'approval': approval, 'confirmed': confirmed, 'procedure': procedure}
     raw = upload.getvalue() if upload else b''
     revision = report.submission_revision(raw,upload.name if upload else None,inputs,draft)
     if session.invalidate(revision): st.session_state.pop('engineer_message', None)
