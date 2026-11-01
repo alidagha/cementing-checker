@@ -11,7 +11,7 @@ import sys
 import tempfile
 import uuid
 
-from c10_corrections import ROOT, Refusal, digest, identities, literal
+from c10_corrections import ROOT, Refusal, digest, identities, literal, private_path
 from docx import Document
 from checker_parser import safe_input, parse_docx
 
@@ -21,7 +21,7 @@ import c04_runtime
 LIMIT = 32 * 1024 * 1024
 BLOCKED = {
     'C09': 'NOT_RUN / NOT_VERIFIABLE: optional independent Procedure/NOTES context is not selected or complete.',
-    'G06-A/B': 'NOT_RUN: no bound what-if request selected; inferred DV is not a measured heel.',
+    'G06-A/B': 'NOT_RUN in this baseline check. G06-A proposals use a separate explicit preview; G06-B remains NOT_RUN. Inferred DV is not a measured heel.',
     'C10': 'NOT_RUN: no correction or DOCX-copy transaction selected.',
     'Advanced domains': 'NOT_VERIFIABLE: automatic Summary/Procedure, placement/excess/geothermal, complete measured Lab/rheology, Spacer formulation and CT stage cascades require further independent context.'}
 
@@ -162,6 +162,8 @@ class PrivateSession:
         self.revision = None
         self.result = None
         self.document = None
+        self.volume_preview = None
+        self.volume_request_sha = None
 
     def folder_check(self):
         if (self.folder.resolve(strict=True) != self.folder or self.folder.parent != ROOT/'c04/tmp'
@@ -171,20 +173,145 @@ class PrivateSession:
 
     def invalidate(self, revision):
         changed = revision != self.revision
-        if changed: self.result = None
+        if changed:
+            self.result = None
+            self.volume_preview = None
+            self.volume_request_sha = None
         self.revision = revision
         return changed
 
     def current(self):
-        if self.result is None: return None
+        if self.result is None:
+            self.volume_preview = None
+            return None
         r=self.result;receipt=r['receipt']
         if (receipt['session_id']!=self.session_id or receipt['revision']!=self.revision
                 or report_identity(r)!=r['report_id'] or identities()!=r['pins']
                 or self.document is None or self.document.resolve()!=self.document
                 or sha256(safe_input(self.document)).hexdigest()!=r['document_sha256']):
             self.result=None
+            self.volume_preview=None
             raise Refusal('Run/session/document receipt is stale or forged')
         return r
+
+    def _volume_context(self, slurry, volume):
+        self.folder_check(); baseline = self.current()
+        if baseline is None or baseline['run_outcome'] != 'PARTIAL_FINDINGS_ONLY':
+            raise Refusal('CURRENT_ADMITTED_BASELINE_REQUIRED')
+        if self.document.parent != self.folder or self.document.is_symlink() or self.document.stat().st_mode & 0o077:
+            raise Refusal('OWNING_PRIVATE_BASELINE_DOCUMENT_REQUIRED')
+        receipt = baseline['receipt']; operator = receipt['inputs_snapshot'].get('cement')
+        c03 = baseline['results']['C03']; c02 = c03['c02']
+        if (receipt['session_id'] != self.session_id or receipt['revision'] != self.revision
+                or receipt['report_id'] != baseline['report_id']
+                or receipt['document_sha256'] != baseline['document_sha256']
+                or receipt['submission_sha256'] != baseline['operator_sha256']
+                or digest(receipt['inputs_snapshot']) != receipt['submission_sha256']
+                or receipt['cement_admission']['status'] != 'SOURCE_ADMITTED'
+                or not {'C02', 'C03'} <= set(baseline['completed_adapters'])
+                or receipt['C02_status'] != 'PARTIAL_FINDINGS_ONLY' or receipt['C03_status'] != 'PARTIAL_FINDINGS_ONLY'
+                or c03['status'] != 'PARTIAL_FINDINGS_ONLY' or c02['status'] != 'PARTIAL_FINDINGS_ONLY'
+                or c03['source_document_sha256'] != baseline['document_sha256']
+                or c02['source_document_sha256'] != baseline['document_sha256']
+                or c03['source_sha'] != baseline['pins']['source_sha']
+                or c02['reference']['operator_input_sha256'] != receipt['cement_operator_sha256']
+                or c02['reference']['operator_inputs'] != operator
+                or operator is None or digest(operator) != receipt['cement_operator_sha256']):
+            raise Refusal('CURRENT_ADMITTED_CEMENT_RECEIPT_REQUIRED')
+        if (type(slurry) is not str or slurry not in self.source_catalog['procedure']['roles']
+                or slurry not in operator['slurries'] or operator['active_fluids'].count(slurry) != 1):
+            raise Refusal('EXACT_ACTIVE_ORDINARY_SLURRY_REQUIRED')
+        if type(volume) not in (int, float) or not math.isfinite(volume) or volume <= 0:
+            raise Refusal('FINITE_POSITIVE_PROPOSED_VOLUME_REQUIRED')
+        return baseline, {'baseline_report_id': baseline['report_id'], 'session_id': self.session_id,
+            'revision': self.revision, 'original_document_sha256': baseline['document_sha256'],
+            'original_operator_sha256': receipt['cement_operator_sha256'], 'source_pins': baseline['pins'],
+            'slurry': slurry, 'proposed_client_volume_bbl': volume}
+
+    def current_volume_preview(self, slurry, volume):
+        try:
+            _, request = self._volume_context(slurry, volume)
+            request_sha = digest(request)
+            if request_sha != self.volume_request_sha:
+                self.volume_preview = None
+            self.volume_request_sha = request_sha
+            preview = self.volume_preview
+            if preview is not None and (preview['receipt']['request'] != request
+                    or preview['receipt']['request_sha256'] != request_sha
+                    or preview['receipt']['impact_sha256'] != digest(preview['impact'])
+                    or preview['receipt']['g06a_bindings'] != preview['impact']['bindings']
+                    or preview['preview_id'] != digest({k: v for k, v in preview.items() if k != 'preview_id'})):
+                raise Refusal('STALE_OR_FORGED_VOLUME_PREVIEW')
+            return preview
+        except (ValueError, OSError, KeyError, TypeError):
+            self.volume_preview = None; self.volume_request_sha = None
+            raise Refusal('VOLUME_PREVIEW_NOT_VERIFIABLE') from None
+
+    def preview_volume(self, slurry, volume):
+        """Fresh G06-A inspection through an identical, short-lived private copy."""
+        self.volume_preview = None
+        self.current_volume_preview(slurry, volume)
+        baseline, request = self._volume_context(slurry, volume)
+        baseline_sha = digest(baseline)
+        operator = json.loads(json.dumps(baseline['receipt']['inputs_snapshot']['cement'], allow_nan=False))
+        original = safe_input(self.document); pins = identities()
+        if sha256(original).hexdigest() != request['original_document_sha256']:
+            raise Refusal('ORIGINAL_DOCUMENT_IDENTITY_DRIFT')
+        folder = Path(tempfile.mkdtemp(prefix='g07-volume-', dir=ROOT/'tmp'))
+        folder_identity = (folder.stat().st_dev, folder.stat().st_ino)
+        copy_path = folder/'input.docx'
+        try:
+            if folder.resolve() != folder or folder.stat().st_mode & 0o077:
+                raise Refusal('PRIVATE_PREVIEW_DIRECTORY_REQUIRED')
+            private_path(copy_path, existing=False)
+            descriptor = os.open(copy_path, os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW, 0o600)
+            with os.fdopen(descriptor, 'wb') as out: out.write(original)
+            if safe_input(private_path(copy_path)) != original:
+                raise Refusal('PREVIEW_COPY_IDENTITY_DRIFT')
+            from g06a_client_volume import inspect_reference, volume_impact
+            inspection = inspect_reference(copy_path, operator, slurry)
+            if (inspection.get('schema') != 'g06a.1' or inspection.get('status') != 'PARTIAL_FINDINGS_ONLY'
+                    or inspection.get('operation') != 'REFERENCE_INSPECTION_ONLY'):
+                raise Refusal('G06A_PHYSICAL_REFERENCE_NOT_VERIFIABLE')
+            bindings = inspection['bindings']
+            if (any(bindings.get(k) != v for k, v in pins.items())
+                    or bindings['original_document_sha256'] != request['original_document_sha256']
+                    or bindings['original_operator_sha256'] != request['original_operator_sha256']
+                    or bindings['original_reference_sha256'] != digest(baseline['results']['C03']['c02']['reference']['slurries'])
+                    or bindings['selected_slurry'] != slurry):
+                raise Refusal('G06A_INSPECTION_BINDING_DRIFT')
+            edit = {'schema': 'g06a.1', 'bindings': bindings, 'slurry': slurry, 'client_volume_bbl': volume}
+            impact = volume_impact(copy_path, operator, edit)
+            expected = json.loads(json.dumps(operator)); expected['slurries'][slurry]['client_volume_bbl'] = volume
+            if (impact.get('schema') != 'g06a.1' or impact.get('status') != 'PARTIAL_FINDINGS_ONLY'
+                    or impact.get('operation') != 'CLIENT_VOLUME_REFERENCE_IMPACT'
+                    or impact['bindings'] != bindings or impact['edit_request_sha256'] != digest(edit)
+                    or impact['edited_operator_reference'] != expected or impact['edited_operator_sha256'] != digest(expected)
+                    or impact['edited_comparison']['reference']['operator_input_sha256'] != digest(expected)
+                    or impact['original_comparison']['reference']['operator_input_sha256'] != request['original_operator_sha256']
+                    or impact['original_document_sha256'] != request['original_document_sha256']
+                    or impact['unchanged_document_sha256'] != request['original_document_sha256']
+                    or impact['docx_written'] is not False or impact['word_modified'] is not False
+                    or impact['invariants'] != {'yield_and_calculated_600ml_recipe': True, 'other_slurries': True, 'measured_results_refreshed': False}):
+                raise Refusal('G06A_IMPACT_IDENTITY_OR_INVARIANT_DRIFT')
+            if (safe_input(private_path(copy_path)) != original or safe_input(self.document) != original
+                    or identities() != pins or digest(operator) != request['original_operator_sha256']
+                    or self._volume_context(slurry, volume)[1] != request or digest(self.current()) != baseline_sha):
+                raise Refusal('BASELINE_OR_PREVIEW_COPY_CHANGED')
+        finally:
+            if folder.resolve() != folder or (folder.stat().st_dev, folder.stat().st_ino) != folder_identity:
+                raise Refusal('PREVIEW_DIRECTORY_IDENTITY_DRIFT')
+            if copy_path.exists() or copy_path.is_symlink(): copy_path.unlink()
+            folder.rmdir()
+        preview = {'status': 'PARTIAL_FINDINGS_ONLY', 'receipt': {'preview_run_id': uuid.uuid4().hex,
+            'request': request, 'request_sha256': digest(request), 'g06a_bindings': bindings,
+            'impact_sha256': digest(impact)}, 'impact': impact}
+        preview['preview_id'] = digest(preview)
+        path = self.folder/('volume-preview-'+preview['receipt']['preview_run_id']+'.json')
+        descriptor = os.open(path, os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW, 0o600)
+        with os.fdopen(descriptor, 'w') as out: json.dump(preview, out, allow_nan=False)
+        self.volume_preview = preview
+        return self.current_volume_preview(slurry, volume)
 
     def store(self, name, raw):
         self.folder_check()
@@ -208,6 +335,7 @@ class PrivateSession:
         if path.parent != self.folder or path.resolve(strict=True) != path or path.is_symlink():
             raise Refusal('Input belongs to another session or escapes private storage')
         self.result=None
+        self.volume_preview=None
         if revision is not None and revision!=self.revision: raise Refusal('Submission revision is stale')
         original = safe_input(path); pins = identities(); input_sha = digest(inputs)
         submitted=json.loads(json.dumps(inputs,sort_keys=True,allow_nan=False))
