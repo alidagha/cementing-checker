@@ -52,7 +52,7 @@ def main():
                 neat_confirmations[fluid]=neat
                 adds = []
                 if not neat:
-                    adds = report.clean_rows(st.data_editor(pd.DataFrame(columns=['Material Type', 'Name', 'Physical State', 'Mix Method', 'User Input', 'Density']),
+                    adds = report.clean_rows(st.data_editor(pd.DataFrame(columns=['Material Type', 'Name', 'Physical State', 'Mix Method', 'User Input', 'Density']).astype({'User Input': 'float64', 'Density': 'float64'}),
                         num_rows='dynamic', key=prefix+'additives', hide_index=True).to_dict('records'))
                     st.caption('Enter source-valid material identity, Powder/Liquid, Dry Blend/In Mix Water, dosage and any required independent density. No recipe defaults.')
                 ready = volume is not None and density is not None and base is not None and sg is not None and (neat or bool(adds))
@@ -67,7 +67,8 @@ def main():
         hardware_on = st.checkbox('Check independently entered hardware')
         hardware = []
         if hardware_on:
-            hardware = report.clean_rows(st.data_editor(pd.DataFrame(columns=catalog['hardware_fields']),
+            hardware = report.clean_rows(st.data_editor(pd.DataFrame(columns=catalog['hardware_fields']).astype({
+                k: 'float64' for k in ('ID (in)', 'Joint (m)', 'Weight (ppf)', 'Collapse (psi)', 'Burst (psi)')}),
                 num_rows='dynamic', hide_index=True, key=f'hardware:{job}').to_dict('records'))
             st.text('Source descriptions: '+', '.join(catalog['hardware_descriptions']))
             st.caption('MD (m) uses the original scalar/range syntax. Placement/excess/geothermal contexts are NOT_VERIFIABLE here.')
