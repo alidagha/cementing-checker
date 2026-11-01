@@ -383,3 +383,161 @@ def test_zero_completed_adapters_cannot_claim_completed_zero_discrepancies():
     row={'Message eligible':True,'Judgments':[{'adapter':'C08','finding':{'result':'DISCREPANCY'}}]}
     message=g.engineer_message({'run_outcome':'PARTIAL_FINDINGS_ONLY','completed_adapters':[],'rows':[row]})
     assert message.startswith('CHECK_NOT_RUN') and 'No discrepancies detected' not in message
+
+
+@pytest.fixture
+def ui_boundary(controls, monkeypatch):
+    """Only upload transport is substituted; engineering inputs use real widgets."""
+    from io import BytesIO
+    import streamlit as st
+    from streamlit import config
+    from streamlit.testing.v1 import AppTest
+    upload = BytesIO(controls['bad']); upload.name = 'independent.docx'
+    uploads = [upload]
+    monkeypatch.setattr(st, 'file_uploader', lambda *args, **kwargs: uploads[0])
+    previous = config.get_option('browser.gatherUsageStats')
+    try:
+        config.set_option('browser.gatherUsageStats', False)
+        yield lambda: AppTest.from_file(str(g.ROOT/'checker_ui.py'), default_timeout=30), uploads
+    finally:
+        config.set_option('browser.gatherUsageStats', previous)
+
+
+def ready_boundary_page(ui_boundary):
+    make_page, _ = ui_boundary
+    app = make_page().run()
+    app.selectbox(key='job').select('CSG 20"').run()
+    app.selectbox(key='mud').select('WBM').run()
+    app.multiselect(key='active:CSG 20":WBM').select('Main').run()
+    prefix = 'CSG 20":Main:'
+    app.number_input(key=prefix+'volume').set_value(50.0)
+    app.number_input(key=prefix+'density').set_value(104.0)
+    app.selectbox(key=prefix+'base').select('Cement G Delijan')
+    app.number_input(key=prefix+'sg').set_value(3.2)
+    app.checkbox(key=prefix+'neat').check().run()
+    assert not app.exception and not app.button[0].disabled
+    return app
+
+
+def assert_no_boundary_result(app):
+    assert app.session_state['_private'].result is None
+    assert 'engineer_message' not in app.session_state
+    assert not any(t.key == 'engineer_message' for t in app.text_area)
+    assert not any(t.value.startswith('Run receipt:') for t in app.text)
+    assert not any('No discrepancies detected' in c.value for c in app.code)
+
+
+def test_ui_malformed_upload_page_boundary(ui_boundary, controls):
+    from io import BytesIO
+    app = ready_boundary_page(ui_boundary)
+    app.button[0].click().run()
+    assert not app.exception
+    before = app.session_state['_private'].result
+    assert before['receipt']['sacks_findings'][0]['source_rounded_expected'] == '154.4'
+    private = app.session_state['_private']
+    original = private.document.read_bytes()
+    malformed = BytesIO(b'not a zip'); malformed.name = 'private-customer-marker.docx'
+    ui_boundary[1][0] = malformed
+    app.run()
+    assert_no_boundary_result(app)
+    app.button[0].click().run()
+    assert not app.exception, [e.message for e in app.exception]
+    assert any('INPUT_REJECTED' in e.value and 'DOCX' in e.value for e in app.error)
+    assert all('private-customer-marker' not in e.value and str(private.folder) not in e.value for e in app.error)
+    assert_no_boundary_result(app)
+    assert private.document.read_bytes() == original
+    assert any(p.read_bytes() == b'not a zip' for p in private.folder.glob('*.docx'))
+    valid = BytesIO(controls['bad']); valid.name = 'independent.docx'
+    ui_boundary[1][0] = valid
+    app.run(); app.button[0].click().run()
+    assert not app.exception
+    result = private.current()
+    assert result['status'] == 'PARTIAL_FINDINGS_ONLY'
+    assert result['receipt']['run_id'] != before['receipt']['run_id']
+    assert result['receipt']['sacks_findings'][0]['result'] == 'DISCREPANCY'
+    assert private.document.read_bytes() == original
+
+
+def test_ui_catalog_timeout_page_boundary(ui_boundary, monkeypatch):
+    import subprocess
+    make_page, _ = ui_boundary
+    original_run = subprocess.run; calls = []
+    def catalog_timeout(command, *args, **kwargs):
+        if len(command) >= 3 and Path(command[2]).name == 'g07_report.py':
+            calls.append((command, kwargs['timeout']))
+            raise subprocess.TimeoutExpired(command, kwargs['timeout'], output='private-payload-marker', stderr='/private/catalog-marker')
+        return original_run(command, *args, **kwargs)
+    with monkeypatch.context() as patch:
+        patch.setattr(subprocess, 'run', catalog_timeout)
+        app = make_page()
+        app.session_state['engineer_message'] = 'stale-message-marker'
+        app.run()
+    assert len(calls) == 1 and calls[0][1] == 60
+    assert not app.exception, [e.message for e in app.exception]
+    assert 'engineer_message' not in app.session_state
+    assert len(app.error) == 1
+    assert 'NOT_VERIFIABLE' in app.error[0].value and 'INPUT_REJECTED' not in app.error[0].value
+    assert all(token not in app.error[0].value for token in ('private-payload-marker', '/private/catalog-marker', 'g07_report.py'))
+    assert not app.button and not app.code
+    app.run()
+    assert not app.exception and app.button[0].disabled
+
+
+def test_ui_source_timeout_page_boundary(ui_boundary, monkeypatch):
+    import subprocess
+    app = ready_boundary_page(ui_boundary)
+    app.button[0].click().run()
+    assert not app.exception
+    private = app.session_state['_private']; before = private.current()
+    original = private.document.read_bytes()
+    original_run = subprocess.run; calls = []
+    def source_timeout(command, *args, **kwargs):
+        if len(command) >= 3 and Path(command[2]).name == 'c04_runtime.py':
+            payload = json.loads(kwargs['input'])
+            calls.append((payload['action'], kwargs['timeout']))
+            raise subprocess.TimeoutExpired(command, kwargs['timeout'], output='private-payload-marker', stderr='/private/source-marker')
+        return original_run(command, *args, **kwargs)
+    with monkeypatch.context() as patch:
+        patch.setattr(subprocess, 'run', source_timeout)
+        app.button[0].click().run()
+    assert calls == [('baseline', 90)]
+    assert not app.exception, [e.message for e in app.exception]
+    assert len(app.error) == 1
+    assert 'NOT_VERIFIABLE' in app.error[0].value and 'INPUT_REJECTED' not in app.error[0].value
+    assert all(token not in app.error[0].value for token in ('private-payload-marker', '/private/source-marker', 'c04_runtime.py', str(private.folder)))
+    assert_no_boundary_result(app)
+    assert private.document.read_bytes() == original
+    assert app.number_input(key='CSG 20":Main:volume').value == 50.0
+    app.button[0].click().run()
+    assert not app.exception
+    result = private.current()
+    assert result['receipt']['run_id'] != before['receipt']['run_id']
+    assert result['receipt']['cement_admission']['status'] == 'SOURCE_ADMITTED'
+    finding = result['receipt']['sacks_findings'][0]
+    assert (finding['source_rounded_expected'], finding['raw_reported_text'], finding['delta']) == ('154.4', '999.9 sks', '845.5')
+    assert app.text_area(key='engineer_message').value.startswith('Your program contains')
+    app.number_input(key='CSG 20":Main:density').set_value(1.0).run()
+    app.button[0].click().run()
+    assert not app.exception
+    assert private.current()['run_outcome'] == 'INPUT_REJECTED'
+    assert app.text_area(key='engineer_message').value.startswith('INPUT_REJECTED')
+    assert private.document.read_bytes() == original
+
+
+def test_ui_malformed_current_receipt_page_boundary(ui_boundary):
+    app = ready_boundary_page(ui_boundary)
+    app.button[0].click().run()
+    assert not app.exception
+    private = app.session_state['_private']; original_path = private.document
+    original = original_path.read_bytes()
+    # An untrusted/stale document pointer must not escape the receipt rejection.
+    # The original is untouched; the separate malformed copy uses intake's 0600 storage.
+    with pytest.raises(zipfile.BadZipFile):
+        private.store('malformed-copy.docx', b'not a zip')
+    private.document = private.folder/(sha256(b'not a zip').hexdigest()+'.docx')
+    app.run()
+    assert not app.exception, [e.message for e in app.exception]
+    assert any('Run receipt rejected' in e.value for e in app.error)
+    assert_no_boundary_result(app)
+    assert all(str(private.folder) not in e.value for e in app.error)
+    assert original_path.read_bytes() == original

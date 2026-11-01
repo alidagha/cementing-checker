@@ -1,6 +1,8 @@
 """Run from a provisioned Git-free runtime: streamlit run checker_ui.py."""
 from hashlib import sha256
 import json
+from subprocess import TimeoutExpired
+from zipfile import BadZipFile
 import pandas as pd
 import streamlit as st
 import g07_report as report
@@ -19,6 +21,9 @@ def main():
             st.session_state['_catalog'] = st.session_state['_private'].source_catalog
         session = st.session_state['_private']; catalog = st.session_state['_catalog']
         session.folder_check()
+    except TimeoutExpired:
+        st.session_state.pop('engineer_message', None)
+        st.error('NOT_VERIFIABLE: source catalog timed out; no checks were run.'); st.stop()
     except (ValueError, RuntimeError, OSError) as error:
         st.error('Private runtime unavailable or identity/configuration rejected. '+str(error)); st.stop()
     with st.expander('Document and independent job inputs', expanded=True):
@@ -114,11 +119,16 @@ def main():
             with st.spinner('Running supplied source-backed checks'):
                 path = session.store(upload.name, raw); result = session.check(path, inputs,revision=revision,draft=draft)
             st.session_state['engineer_message'] = result['message']
+        except BadZipFile:
+            session.result = None; st.error('INPUT_REJECTED: invalid DOCX package; no check result is available.')
+        except TimeoutExpired:
+            session.result = None; st.error('NOT_VERIFIABLE: source process timed out; no check result is available.')
         except (ValueError, RuntimeError, OSError, KeyError, TypeError, ArithmeticError):
             session.result = None; st.error('INPUT_REJECTED / NOT_VERIFIABLE: document, independent inputs or source boundary rejected the check.')
     if session.result is not None:
         try:result=session.current()
-        except (ValueError,RuntimeError,OSError,KeyError):
+        except (BadZipFile,ValueError,RuntimeError,OSError,KeyError):
+            session.result = None
             st.session_state.pop('engineer_message',None);st.error('Run receipt rejected; recompute current independent inputs.');st.stop()
         st.subheader('English findings — PARTIAL_FINDINGS_ONLY')
         st.text('Run outcome: '+result['run_outcome'])
