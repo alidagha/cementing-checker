@@ -541,3 +541,31 @@ def test_ui_malformed_current_receipt_page_boundary(ui_boundary):
     assert_no_boundary_result(app)
     assert all(str(private.folder) not in e.value for e in app.error)
     assert original_path.read_bytes() == original
+
+
+@pytest.mark.parametrize('editor', ['additives', 'hardware'])
+def test_ui_editors_preserve_source_numeric_types_and_text_syntax(editor):
+    import pandas as pd
+    from streamlit import config
+    from streamlit.testing.v1 import AppTest
+    previous = config.get_option('browser.gatherUsageStats')
+    try:
+        config.set_option('browser.gatherUsageStats', False)
+        app = AppTest.from_file(str(g.ROOT/'checker_ui.py'), default_timeout=30).run()
+        app.selectbox(key='job').select('CSG 20"').run()
+        app.selectbox(key='mud').select('WBM').run()
+        app.multiselect(key='active:CSG 20":WBM').select('Main').run()
+        if editor == 'hardware':
+            next(c for c in app.checkbox if c.label == 'Check independently entered hardware').check().run()
+        assert not app.exception
+        frame = app.dataframe[0 if editor == 'additives' else 1].value
+        numeric = ('User Input', 'Density') if editor == 'additives' else (
+            'ID (in)', 'Joint (m)', 'Weight (ppf)', 'Collapse (psi)', 'Burst (psi)')
+        text = ('Material Type', 'Name', 'Physical State', 'Mix Method') if editor == 'additives' else (
+            'Description', 'MD (m)', 'Size (in)', 'Grade')
+        assert frame.empty  # no numeric defaults or synthesized engineering facts
+        assert all(pd.api.types.is_float_dtype(frame[k]) for k in numeric), frame.dtypes
+        assert all(pd.api.types.is_object_dtype(frame[k]) for k in text), frame.dtypes
+        assert app.button[0].disabled
+    finally:
+        config.set_option('browser.gatherUsageStats', previous)
