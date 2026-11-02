@@ -258,11 +258,63 @@ def main():
                 st.caption('Gross full precision is unexposed/null. Display agreement is not an exact historical change. No NOTE, Procedure, Summary, measured Lab or Word correction is generated; no whole-program certification.')
                 with st.expander('G06-B source invariants, original C03 and complete provenance'):
                     st.json(dv_preview)
+        with st.expander('Optional C10 selective safe-copy DOCX'):
+            st.caption('PARTIAL_FINDINGS_ONLY; selectable Yield/Sacks only; original Word unchanged; unselected and dependent items unverified/manual; no overall PASS.')
+            inspection = None; copy_ready = False
+            try:
+                inspection = session.current_copy_proposals(); copy_ready = True
+            except (BadZipFile, ValueError, RuntimeError, OSError, KeyError, TypeError):
+                pass
+            if st.button('Inspect C10 selective-copy proposals', disabled=not copy_ready):
+                try:
+                    with st.spinner('Inspecting source replacements and physical cells'):
+                        inspection = session.inspect_copy_proposals()
+                except (BadZipFile, ValueError, RuntimeError, OSError, KeyError, TypeError, ArithmeticError):
+                    inspection = None
+                    st.error('NOT_VERIFIABLE: C10 proposal/source inspection failed. No copy or download is available; original and baseline unchanged.')
+            if inspection is None:
+                st.text('C10: NOT_RUN — a current source-admitted run and explicit proposal inspection are required.')
+            else:
+                st.text('C10: PREVIEW_ONLY — no DOCX has been created by this inspection.')
+                st.text('C10 inspection receipt: '+inspection['receipt']['inspection_run_id'])
+                st.dataframe(pd.DataFrame([{k:report.ascii_text(v) for k,v in p.items()}
+                    for p in inspection['proposal']['proposals']]), hide_index=True, width='stretch')
+                for text in inspection['proposal']['limitations']: st.text(text)
+                selected_ids = []
+                for item in inspection['proposal']['proposals']:
+                    if item['action'] != 'SELECTABLE': continue
+                    label = 'C10 '+item['slurry']+' '+item['field']+': '+report.ascii_text(item['original_raw_text'])+' -> '+report.ascii_text(item['replacement'])
+                    if st.checkbox(label, key='c10:'+inspection['proposal_id']+':'+item['finding_id']):
+                        selected_ids.append(item['finding_id'])
+                if not any(p['action'] == 'SELECTABLE' for p in inspection['proposal']['proposals']):
+                    st.text('No SELECTABLE C10 claim. Manual/unverified items cannot generate a copy.')
+                consent = st.checkbox('Confirm creation of a new DOCX for only the individually selected C10 cells',
+                    key='c10:confirm:'+inspection['proposal_id']+':'+report.digest(selected_ids), disabled=not selected_ids)
+                created = None
+                try: created = session.current_created_copy(selected_ids, consent)
+                except (BadZipFile, ValueError, RuntimeError, OSError, KeyError, TypeError): pass
+                if st.button('Create selected-copy DOCX', disabled=not(selected_ids and consent)):
+                    try:
+                        with st.spinner('Applying and rechecking exact selected cells'):
+                            created = session.create_selected_copy(selected_ids, consent)
+                    except (BadZipFile, ValueError, RuntimeError, OSError, KeyError, TypeError, ArithmeticError):
+                        created = None
+                        st.error('NOT_VERIFIABLE: C10 creation/recheck or private cleanup failed. No download is credited; original and baseline unchanged.')
+                if created is not None:
+                    st.text('C10: COPY_CREATED — selected C02 cells rechecked; dependent program remains partial/manual.')
+                    st.text('C10 copy receipt: '+created['receipt']['copy_run_id'])
+                    st.warning('**Known download privacy limitation (G08-A6):** Anyone who obtains a corrected DOCX download URL may be able to download that file from a different browser session, even without an uploaded program or Checker receipt. Do not use this feature for confidential, personal, or customer-sensitive programs. The correction mechanism does not alter the original DOCX. This limitation is documented and remains unresolved.')
+                    st.download_button('Download selected-copy DOCX', data=created['bytes'], file_name='checker-selected-copy.docx',
+                        mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document', on_click='ignore')
+                    with st.expander('C10 selected/unselected recheck and copy provenance'):
+                        st.json({k:v for k,v in created.items() if k != 'bytes'})
+                with st.expander('C10 complete proposal and source provenance'):
+                    st.json(inspection)
     else:
         st.info('NOT_RUN — enter independent inputs and select Run Check. Previous results and messages are cleared when document or inputs change.')
     with st.expander('Coverage and blocked dependencies'):
         for name, status in report.BLOCKED.items(): st.text(name+': '+status)
-        st.text('Cover/document control, survey, centralizer, pore/frac, IOD, images, schematic and charts are excluded. No corrected DOCX or automatic sending is available.')
+        st.text('Cover/document control, survey, centralizer, pore/frac, IOD, images, schematic and charts are excluded. Only the explicit C10 selected-cell copy can offer a new DOCX; no automatic sending is available.')
 
 
 if __name__ == '__main__': main()

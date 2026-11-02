@@ -1,5 +1,6 @@
 """Private session intake and presentation of accepted Checker evidence; no formulas."""
 from collections import OrderedDict
+from contextlib import contextmanager
 from hashlib import sha256
 import json
 import math
@@ -10,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import uuid
+from zipfile import BadZipFile
 
 from c10_corrections import ROOT, Refusal, digest, identities, literal, private_path
 from docx import Document
@@ -22,7 +24,7 @@ LIMIT = 32 * 1024 * 1024
 BLOCKED = {
     'C09': 'NOT_RUN / NOT_VERIFIABLE: optional independent Procedure/NOTES context is not selected or complete.',
     'G06-A/B': 'NOT_RUN in this baseline check. G06-A and G06-B proposals use separate explicit previews. Inferred DV is not a measured heel.',
-    'C10': 'NOT_RUN: no correction or DOCX-copy transaction selected.',
+    'C10': 'NOT_RUN in this baseline check. Optional selective-copy transactions have separate receipts; no dependent program correction is credited.',
     'Advanced domains': 'NOT_VERIFIABLE: automatic Summary/Procedure, placement/excess/geothermal, complete measured Lab/rheology, Spacer formulation and CT stage cascades require further independent context.'}
 
 
@@ -166,6 +168,12 @@ class PrivateSession:
         self.volume_request_sha = None
         self.dv_preview = None
         self.dv_request_sha = None
+        self._clear_copy()
+
+    def _clear_copy(self):
+        self.copy_proposal = None
+        self.copy_output = None
+        self.copy_choice_sha = None
 
     def folder_check(self):
         if (self.folder.resolve(strict=True) != self.folder or self.folder.parent != ROOT/'c04/tmp'
@@ -181,6 +189,7 @@ class PrivateSession:
             self.volume_request_sha = None
             self.dv_preview = None
             self.dv_request_sha = None
+            self._clear_copy()
         self.revision = revision
         return changed
 
@@ -188,6 +197,7 @@ class PrivateSession:
         if self.result is None:
             self.volume_preview = None
             self.dv_preview = None
+            self._clear_copy()
             return None
         r=self.result;receipt=r['receipt']
         if (receipt['session_id']!=self.session_id or receipt['revision']!=self.revision
@@ -197,6 +207,7 @@ class PrivateSession:
             self.result=None
             self.volume_preview=None
             self.dv_preview=None
+            self._clear_copy()
             raise Refusal('Run/session/document receipt is stale or forged')
         return r
 
@@ -237,6 +248,204 @@ class PrivateSession:
         if type(volume) not in (int, float) or not math.isfinite(volume) or volume <= 0:
             raise Refusal('FINITE_POSITIVE_PROPOSED_VOLUME_REQUIRED')
         return baseline, dict(request, proposed_client_volume_bbl=volume)
+
+    def _copy_context(self):
+        baseline = self.current()
+        operator = baseline['receipt']['inputs_snapshot'].get('cement') if baseline else None
+        roles = [n for n in self.source_catalog['order'] if n in (operator or {}).get('slurries', {})
+            and n in self.source_catalog['procedure']['roles']]
+        if not roles: raise Refusal('CURRENT_ADMITTED_ORDINARY_CEMENT_REQUIRED')
+        baseline, request = self._preview_context(roles[0])
+        # This chooses no correction: every proposal still needs individual consent.
+        request.pop('slurry')
+        return baseline, dict(request, ordinary_slurries=roles)
+
+    @contextmanager
+    def _copy_bridge(self, original):
+        folder = Path(tempfile.mkdtemp(prefix='g07-c10-', dir=ROOT/'tmp'))
+        identity = (folder.stat().st_dev, folder.stat().st_ino)
+        source, output = folder/'input.docx', folder/'selected-copy.docx'
+        try:
+            if folder.resolve() != folder or folder.is_symlink() or folder.stat().st_mode & 0o077:
+                raise Refusal('PRIVATE_C10_DIRECTORY_REQUIRED')
+            private_path(source, existing=False)
+            descriptor = os.open(source, os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW, 0o600)
+            with os.fdopen(descriptor, 'wb') as out: out.write(original)
+            if safe_input(private_path(source)) != original: raise Refusal('C10_INPUT_COPY_DRIFT')
+            yield source, output
+        finally:
+            if folder.resolve() != folder or (folder.stat().st_dev, folder.stat().st_ino) != identity:
+                raise Refusal('C10_CLEANUP_IDENTITY_DRIFT')
+            for path in (source, output):
+                if path.exists() or path.is_symlink(): path.unlink()
+            folder.rmdir()  # Unexpected leftovers/cleanup faults must prevent download.
+
+    def _copy_proof(self, proposal, baseline, request):
+        if (proposal['schema'] != 'c10.1' or proposal['status'] != 'PARTIAL_FINDINGS_ONLY'
+                or proposal['transaction_status'] != 'PREVIEW_ONLY'
+                or proposal['bindings'] != dict(request['source_pins'],
+                    original_document_sha256=request['original_document_sha256'], operator_sha256=request['original_operator_sha256'])
+                or proposal['comparison_before'] != baseline['results']['C03']['c02']):
+            raise Refusal('C10_SOURCE_COMPARISON_OR_BINDING_DRIFT')
+        ids = [p['finding_id'] for p in proposal['proposals']]
+        if len(ids) != len(set(ids)) or any(type(i) is not str or not i for i in ids):
+            raise Refusal('C10_PROPOSAL_IDENTITY_NOT_PROVED')
+        for item in proposal['proposals']:
+            if (item['finding_id'] != digest({'bindings': proposal['bindings'],
+                    'finding': {k:v for k,v in item.items() if k != 'finding_id'}})
+                    or item['action'] == 'SELECTABLE' and (item['field'] not in ('yield','sacks')
+                        or item['slurry'] not in request['ordinary_slurries'])):
+                raise Refusal('C10_PROPOSAL_DRIFT')
+
+    def current_copy_proposals(self):
+        try:
+            baseline, request = self._copy_context(); value = self.copy_proposal
+            if value is not None:
+                if (value['receipt']['request'] != request or value['receipt']['request_sha256'] != digest(request)
+                        or value['receipt']['proposal_sha256'] != digest(value['proposal'])
+                        or value['proposal_id'] != digest({k:v for k,v in value.items() if k != 'proposal_id'})):
+                    raise Refusal('C10_PROPOSAL_RECEIPT_DRIFT')
+                self._copy_proof(value['proposal'], baseline, request)
+            return value
+        except (BadZipFile, ValueError, RuntimeError, OSError, KeyError, TypeError, ArithmeticError):
+            self._clear_copy()
+            raise Refusal('C10_PROPOSAL_NOT_VERIFIABLE') from None
+
+    def inspect_copy_proposals(self):
+        self._clear_copy()
+        try:
+            baseline, request = self._copy_context(); before = digest(baseline)
+            original = safe_input(self.document)
+            operator = json.loads(json.dumps(baseline['receipt']['inputs_snapshot']['cement'], allow_nan=False))
+            siblings = digest([self.volume_preview, self.dv_preview])
+            from c10_corrections import propose
+            with self._copy_bridge(original) as (source, _):
+                proposal = propose(source, operator)
+                self._copy_proof(proposal, baseline, request)
+                if safe_input(private_path(source)) != original: raise Refusal('C10_INPUT_COPY_DRIFT')
+            if (self._copy_context()[1] != request or digest(self.current()) != before
+                    or safe_input(self.document) != original or digest(operator) != request['original_operator_sha256']
+                    or digest([self.volume_preview, self.dv_preview]) != siblings):
+                raise Refusal('C10_BASELINE_OR_SIBLING_DRIFT')
+            value = {'status':'PARTIAL_FINDINGS_ONLY', 'receipt':{'inspection_run_id':uuid.uuid4().hex,
+                'request':request, 'request_sha256':digest(request), 'proposal_sha256':digest(proposal)}, 'proposal':proposal}
+            value['proposal_id'] = digest(value)
+            receipt_path = self.folder/('c10-proposal-'+value['receipt']['inspection_run_id']+'.json')
+            descriptor = os.open(receipt_path, os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW, 0o600)
+            with os.fdopen(descriptor, 'w') as out: json.dump(value, out, allow_nan=False)
+            self.copy_proposal = value
+            return self.current_copy_proposals()
+        except subprocess.TimeoutExpired:
+            self._clear_copy(); raise Refusal('C10_SOURCE_UNAVAILABLE') from None
+        except (BadZipFile, ValueError, RuntimeError, OSError, KeyError, TypeError, ArithmeticError):
+            self._clear_copy(); raise Refusal('C10_PROPOSAL_NOT_VERIFIABLE') from None
+
+    def _copy_choice(self, selected_ids, confirmed):
+        inspection = self.current_copy_proposals()
+        if (inspection is None or type(selected_ids) is not list or not selected_ids
+                or any(type(i) is not str for i in selected_ids)
+                or len(selected_ids) != len(set(selected_ids)) or confirmed is not True):
+            raise Refusal('EXPLICIT_C10_SELECTION_AND_CONSENT_REQUIRED')
+        offers = inspection['proposal']['proposals']
+        selected = [p for i in selected_ids for p in offers if p['finding_id'] == i and p['action'] == 'SELECTABLE']
+        if len(selected) != len(selected_ids): raise Refusal('C10_SELECTION_NOT_PROVED')
+        choice = {'proposal_id':inspection['proposal_id'], 'selected_ids':selected_ids, 'confirmed':True}
+        return inspection, selected, choice
+
+    def current_created_copy(self, selected_ids, confirmed):
+        try:
+            inspection, selected, choice = self._copy_choice(selected_ids, confirmed)
+            choice_sha = digest(choice)
+            if choice_sha != self.copy_choice_sha: self.copy_output = None
+            self.copy_choice_sha = choice_sha
+            value = self.copy_output
+            if value is not None and (value['receipt']['request'] != inspection['receipt']['request']
+                    or value['receipt']['choice'] != choice
+                    or value['receipt']['choice_sha256'] != choice_sha
+                    or value['receipt']['output_sha256'] != sha256(value['bytes']).hexdigest()
+                    or value['receipt']['transaction_sha256'] != digest(value['transaction'])
+                    or value['transaction']['status'] != 'PARTIAL_FINDINGS_ONLY'
+                    or value['transaction']['transaction_status'] != 'COPY_CREATED'
+                    or value['transaction']['dependency_group_complete'] is not False
+                    or value['transaction']['bindings'] != inspection['proposal']['bindings']
+                    or value['transaction']['comparison_before'] != inspection['proposal']['comparison_before']
+                    or value['transaction']['new_document_sha256'] != value['receipt']['output_sha256']
+                    or value['transaction']['comparison_after']['source_document_sha256'] != value['receipt']['output_sha256']
+                    or value['transaction']['selected'] != selected
+                    or value['copy_id'] != digest({k:v for k,v in value.items() if k not in ('bytes','copy_id')})):
+                raise Refusal('C10_COPY_RECEIPT_DRIFT')
+            return value
+        except (BadZipFile, ValueError, RuntimeError, OSError, KeyError, TypeError, ArithmeticError):
+            self.copy_output = None; self.copy_choice_sha = None
+            raise Refusal('C10_COPY_NOT_VERIFIABLE') from None
+
+    def create_selected_copy(self, selected_ids, confirmed):
+        self.copy_output = None
+        try:
+            self.current_created_copy(selected_ids, confirmed)
+            inspection, selected, choice = self._copy_choice(selected_ids, confirmed)
+            baseline, request = self._copy_context(); before = digest(baseline)
+            original = safe_input(self.document)
+            operator = json.loads(json.dumps(baseline['receipt']['inputs_snapshot']['cement'], allow_nan=False))
+            siblings = digest([self.volume_preview, self.dv_preview])
+            selection = {'schema':'c10.1', 'bindings':inspection['proposal']['bindings'], 'selected':selected}
+            from c10_corrections import apply, key
+            with self._copy_bridge(original) as (source, output):
+                private_path(output, existing=False)
+                result = apply(source, operator, selection, output)
+                if (result['status'] != 'PARTIAL_FINDINGS_ONLY' or result['transaction_status'] != 'COPY_CREATED'
+                        or result['dependency_group_complete'] is not False or result['unchanged_package_parts'] is not True
+                        or result['selected'] != selected or result['output_path'] != str(output)
+                        or any(result[k] != v for k,v in inspection['proposal'].items() if k != 'transaction_status')
+                        or result['unselected'] != [p for p in result['proposals'] if p not in selected]
+                        or result['original_document_sha256'] != request['original_document_sha256']):
+                    raise Refusal('C10_TRANSACTION_NOT_PROVED')
+                data = safe_input(private_path(output))
+                after = result['comparison_after']; old = result['comparison_before']
+                if (sha256(data).hexdigest() != result['new_document_sha256']
+                        or after['status'] != 'PARTIAL_FINDINGS_ONLY'
+                        or after['source_document_sha256'] != result['new_document_sha256']
+                        # C10 retains both call traces: the first includes cold imports.
+                        # Every source identity/input/value must still be identical.
+                        or {k:v for k,v in after['reference'].items() if k != 'source_calls'} != {
+                            k:v for k,v in old['reference'].items() if k != 'source_calls'}
+                        or not set(after['reference']['source_calls']) <= set(old['reference']['source_calls'])
+                        or not {'engineering_tools.py:calculate_slurry_from_components',
+                            'phase_5_cement.py:build_cement_tables', 'phase_10_procedure.py:_word_program_quantities',
+                            'phase_7_lab.py:build_lab_df_from_phase5'} <= set(after['reference']['source_calls'])
+                        or len(after['findings']) != len(old['findings'])):
+                    raise Refusal('C10_RECHECK_IDENTITY_DRIFT')
+                wanted = {digest(key(p)):p for p in selected}
+                for a,b in zip(old['findings'], after['findings']):
+                    chosen = wanted.get(digest(key(a)))
+                    if (key(a) != key(b) or chosen is not None and (a['result'] != 'DISCREPANCY'
+                            or b['result'] != 'MATCH' or b['raw_reported_text'] != chosen['replacement'])
+                            or chosen is None and {k:v for k,v in a.items() if k != 'source_document_sha256'} != {
+                                k:v for k,v in b.items() if k != 'source_document_sha256'}):
+                        raise Refusal('C10_SELECTED_OR_UNSELECTED_RECHECK_FAILED')
+                if safe_input(private_path(source)) != original: raise Refusal('C10_INPUT_COPY_DRIFT')
+            if (self._copy_context()[1] != request or digest(self.current()) != before
+                    or self._copy_choice(selected_ids, confirmed)[2] != choice or safe_input(self.document) != original
+                    or digest(operator) != request['original_operator_sha256']
+                    or digest([self.volume_preview, self.dv_preview]) != siblings):
+                raise Refusal('C10_BASELINE_OR_SIBLING_DRIFT')
+            # C10's transient output path is verified above and never disclosed.
+            transaction = {k:v for k,v in result.items() if k != 'output_path'}
+            value = {'status':'PARTIAL_FINDINGS_ONLY', 'receipt':{'copy_run_id':uuid.uuid4().hex,
+                'request':request, 'choice':choice, 'choice_sha256':digest(choice),
+                'transaction_sha256':digest(transaction), 'output_sha256':sha256(data).hexdigest()}, 'transaction':transaction}
+            value['copy_id'] = digest(value)
+            receipt_path = self.folder/('c10-copy-'+value['receipt']['copy_run_id']+'.json')
+            descriptor = os.open(receipt_path, os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW, 0o600)
+            with os.fdopen(descriptor, 'w') as out: json.dump(value, out, allow_nan=False)
+            self.copy_output = dict(value, bytes=data)
+            return self.current_created_copy(selected_ids, confirmed)
+        except subprocess.TimeoutExpired:
+            self.copy_output = None; self.copy_choice_sha = None
+            raise Refusal('C10_SOURCE_UNAVAILABLE') from None
+        except (BadZipFile, ValueError, RuntimeError, OSError, KeyError, TypeError, ArithmeticError):
+            self.copy_output = None; self.copy_choice_sha = None
+            raise Refusal('C10_COPY_NOT_VERIFIABLE') from None
 
     def _dv_context(self, slurry, value):
         baseline, request = self._preview_context(slurry)
@@ -456,6 +665,7 @@ class PrivateSession:
         self.volume_preview=None
         self.dv_preview=None
         self.dv_request_sha=None
+        self._clear_copy()
         if revision is not None and revision!=self.revision: raise Refusal('Submission revision is stale')
         original = safe_input(path); pins = identities(); input_sha = digest(inputs)
         submitted=json.loads(json.dumps(inputs,sort_keys=True,allow_nan=False))
