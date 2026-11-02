@@ -176,6 +176,46 @@ def main():
             edited = st.text_area('Engineer message', key='engineer_message', height=180)
             st.caption('Copy Message: commit edits with Ctrl+Enter or leave the field, then use the native copy icon below. It copies the currently displayed edited text for the current run receipt.')
             st.code(edited, language=None, wrap_lines=True)
+        with st.expander('Optional G06-A client-volume reference impact'):
+            st.text('Proposed client volume — source-reference impact only; no Word edit')
+            st.caption('The authoritative client request, baseline findings and engineer message remain unchanged. Source eligibility and physical Yield/Sacks identity are inspected only on preview. C09 Dead Volume is not carried into G06-A.')
+            cop = result['receipt']['inputs_snapshot'].get('cement') or {}
+            roles = [n for n in catalog['order'] if n in cop.get('slurries', {}) and n in catalog['procedure']['roles']]
+            selected = st.selectbox('G06-A selected active ordinary slurry', roles, index=None, key='g06a:selected')
+            proposed = st.number_input('G06-A proposed client volume (bbl)', value=None, key='g06a:volume')
+            preview = None; ready = False
+            try:
+                preview = session.current_volume_preview(selected, proposed); ready = True
+            except (ValueError, OSError, KeyError, TypeError):
+                pass  # Incomplete/invalid controls invalidate preview only, never the baseline.
+            if st.button('Preview client-volume reference impact', disabled=not ready):
+                try:
+                    with st.spinner('Inspecting the bound source reference'):
+                        preview = session.preview_volume(selected, proposed)
+                except TimeoutExpired:
+                    preview = None; st.error('NOT_VERIFIABLE: G06-A source process timed out; no preview is available. Baseline unchanged.')
+                except (BadZipFile, ValueError, RuntimeError, OSError, KeyError, TypeError, ArithmeticError):
+                    preview = None; st.error('INPUT_REJECTED / NOT_VERIFIABLE: G06-A selection, physical claims or source reference could not be proved. No preview is available; baseline unchanged.')
+            st.text('G06-B: NOT_RUN — separate explicit Dead Volume impact is not selected.')
+            if preview is None:
+                st.text('G06-A: NOT_RUN / NOT_VERIFIABLE — a current admitted C02/C03 run, one selected slurry and a finite positive proposal are required; no preview is credited.')
+            else:
+                impact = preview['impact']
+                st.text('G06-A: CLIENT_VOLUME_REFERENCE_IMPACT — PARTIAL_FINDINGS_ONLY')
+                st.text('G06-A preview receipt: '+preview['receipt']['preview_run_id'])
+                st.text('Preview identity: '+preview['preview_id'])
+                volume_row = next(r for r in impact['source_dependency_ledger'] if r['dependency'] == 'client_requested_volume')
+                st.text('Authoritative baseline reference: '+str(volume_row['old_full_precision'])+' bbl; proposed reference only: '+str(volume_row['new_full_precision'])+' bbl.')
+                for title, key in (('Source-reference dependencies', 'source_dependency_ledger'),
+                        ('Original Word claims — unchanged', 'word_claim_impacts'),
+                        ('Unresolved dependencies', 'unresolved_dependencies')):
+                    st.text(title)
+                    st.dataframe(pd.DataFrame([{k: report.ascii_text(v) if v is not None else 'null'
+                        for k, v in row.items()} for row in impact[key]]), hide_index=True, width='stretch')
+                st.caption('Unproved source display changes remain null. MATCH/DISCREPANCY compares unchanged Word with a proposed reference; nothing has been repaired. Calculated recipe is not measured Lab.')
+                st.text(impact['reference_dead_volume_policy'])
+                with st.expander('G06-A preview bindings and complete provenance'):
+                    st.json(preview)
     else:
         st.info('NOT_RUN — enter independent inputs and select Run Check. Previous results and messages are cleared when document or inputs change.')
     with st.expander('Coverage and blocked dependencies'):
