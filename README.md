@@ -1,8 +1,8 @@
-# Cementing Checker — bounded C01R–C04
+# Cementing Checker — partial source-backed findings
 
 Independent First · Integration Optional · Simplicity Always.
 
-Local unpublished genesis proposal, subject to independent review and Owner rights/privacy and publication decisions. No license grant is implied. This tree contains accepted Checker code and unchanged focused tests; it does not distribute the upstream App, Word template, libraries, original fixtures or recovery archives.
+This public repository contains the independent Cementing Program Checker and its implemented-scope regression checks. It does not distribute the pinned upstream App, Word template, libraries, original fixtures or recovery archives. Publication is not production acceptance or a new license grant.
 
 C01R extracts ordered DOCX claims. C02 calls the original automatic App engine for selected numeric comparisons. C03 attributes preparation-water notes/tanks and reports inferred allowance intervals. C04 previews an explicit selected ordinary-slurry Dead Volume proposal without editing Word. Results remain `PARTIAL_FINDINGS_ONLY`; CLI exit 0 is not program approval.
 
@@ -20,7 +20,7 @@ python3.12 -m venv /YOUR/SCRATCH/checker-env
 
 The lock records observed working versions, including transitive imports. Package availability on another index/platform and a fresh pip installation are separate verification gates; no libraries are vendored. Network is needed for package acquisition and the explicitly pinned external source download. Calculations themselves are local.
 
-From this candidate root, using that environment's Python:
+From the repository checkout, using that environment's Python:
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python -B tools/provision.py --destination /YOUR/SCRATCH/checker-runtime
@@ -34,7 +34,7 @@ python -B tools/ci.py run --shard C
 python -B tools/ci.py certify
 ```
 
-The fresh runtime must be outside this candidate and all Git worktrees. Provision downloads `alidagha/cementing-test` at the exact `upstream.lock.json` commit and verifies all 143 SHA256/Git-blob identities, including the template. Availability is not guaranteed, and download instructions are not redistribution permission. Only the private runtime contains `snapshot/` and generated source-rendered synthetic fixtures. It is not an offline/self-contained public distribution.
+The fresh runtime must be outside this checkout and all Git worktrees. Provision downloads `alidagha/cementing-test` at the exact `upstream.lock.json` commit and verifies all 143 SHA256/Git-blob identities, including the template. Availability is not guaranteed, and download instructions are not redistribution permission. Only the private runtime contains `snapshot/` and generated source-rendered synthetic fixtures. It is not an offline/self-contained public distribution.
 
 `--seed` generates new structural equivalents needed by unchanged tests. Files historically named `red-baseline.json` or `c03-baseline.json` are fresh runtime controls here, never evidence of a historical RED. Accepted historical files remain private and unchanged. No sanitized replacement or byte identity of original DOCX is asserted; no DOCX is proposed for Git.
 
@@ -50,7 +50,27 @@ The synthetic control proposes Main DV 10 bbl: preparation water displays 44.2 b
 
 Unsupported roles, conflicting/duplicate notes, unproved fields and malformed data fail closed or remain unverified. `Solution` is not pure Mix Water. Dead Volume is not a measured tank heel or physical minimum. No new mandatory fluid exists.
 
-NOT RUN/certified: 15-job goldens, complete Formula/Procedure/Lab parity, native Word/browser, full App regression, corrected DOCX and UI/integration. The original M00 handoff describes migration evidence; subsequent owner-authorized hosted runs certify only the currently implemented Checker test scope.
+Not certified: authentic 15-job Golden UAT, complete Formula/Procedure/Lab parity, native Word verification, full App regression or production readiness. Existing implemented-scope CI and bounded browser controls do not certify an entire engineering program.
+
+PRs to `main` run Fast Gate, complete native A/B/C shards and the required `regression` evidence gate. A push to `main` runs Fast Gate plus the fast-only required status; full A/B/C is intentionally skipped. Verify each candidate's exact-head evidence rather than treating historical CI as a fresh PASS.
+
+## One-page Checker UI
+
+After provisioning and seeding the private Git-free runtime above, launch there:
+
+```sh
+python -B -m streamlit run checker_ui.py --server.address 127.0.0.1 --server.headless true --server.maxUploadSize 32 --browser.gatherUsageStats false
+```
+
+The single page accepts DOCX only, gathers independent engineering inputs, and runs compatible implemented checks only when their source-valid prerequisites are supplied. It shows English traceable partial findings and an editable, run-bound engineer message with native copy. Missing or unsupported coverage remains explicitly NOT_RUN / NOT_VERIFIABLE. See the [G07 contract](docs/specifications/g07-ui-report.md) for historical implementation evidence; current behavior also includes the separately approved later bindings.
+
+After a current admitted C02/C03 run, the optional [G06-A client-volume preview](docs/specifications/g06a-client-volume.md) accepts one eligible active ordinary slurry and an independently proposed positive volume. It displays a separate source-reference impact: the authoritative client request, baseline findings, engineer message and original Word bytes remain unchanged. C09 Dead Volume is not carried into G06-A. G06-B explicit-DV and C10 correction remain separate backend contracts, not UI transactions.
+
+Known limit: the original pinned-template control is refused by G06-A with `PLAIN_RUN_REQUIRED`; G07 admission alone does not prove eligible physical Yield/Sacks claims. The positive preview control uses a distinct source-valued literal-table synthetic layout, not an authentic App-generated Golden. In this client-volume preview, operational DV, total preparation water/gross-with-DV, narrative, timing, measured Lab, geometry and CT/Spacer dependencies retain their source-reported unresolved status.
+
+## Current governance and historical records
+
+Current work follows v5.4 rev1 and the [governance references](docs/governance/authority.md); the [Codex operative card](docs/codex_operative_card_v5_4_rev1.md) is a derived summary. The complete Charter remains private. Older specifications retain their dated v5.3 references and SHA/baseline evidence as historical technical records, not current governance or fresh acceptance. The original M00 migration instructions are historical, not a new publication authorization.
 
 ## G01 engineering extensions
 
