@@ -21,7 +21,7 @@ import c04_runtime
 LIMIT = 32 * 1024 * 1024
 BLOCKED = {
     'C09': 'NOT_RUN / NOT_VERIFIABLE: optional independent Procedure/NOTES context is not selected or complete.',
-    'G06-A/B': 'NOT_RUN in this baseline check. G06-A proposals use a separate explicit preview; G06-B remains NOT_RUN. Inferred DV is not a measured heel.',
+    'G06-A/B': 'NOT_RUN in this baseline check. G06-A and G06-B proposals use separate explicit previews. Inferred DV is not a measured heel.',
     'C10': 'NOT_RUN: no correction or DOCX-copy transaction selected.',
     'Advanced domains': 'NOT_VERIFIABLE: automatic Summary/Procedure, placement/excess/geothermal, complete measured Lab/rheology, Spacer formulation and CT stage cascades require further independent context.'}
 
@@ -164,6 +164,8 @@ class PrivateSession:
         self.document = None
         self.volume_preview = None
         self.volume_request_sha = None
+        self.dv_preview = None
+        self.dv_request_sha = None
 
     def folder_check(self):
         if (self.folder.resolve(strict=True) != self.folder or self.folder.parent != ROOT/'c04/tmp'
@@ -177,12 +179,15 @@ class PrivateSession:
             self.result = None
             self.volume_preview = None
             self.volume_request_sha = None
+            self.dv_preview = None
+            self.dv_request_sha = None
         self.revision = revision
         return changed
 
     def current(self):
         if self.result is None:
             self.volume_preview = None
+            self.dv_preview = None
             return None
         r=self.result;receipt=r['receipt']
         if (receipt['session_id']!=self.session_id or receipt['revision']!=self.revision
@@ -191,10 +196,11 @@ class PrivateSession:
                 or sha256(safe_input(self.document)).hexdigest()!=r['document_sha256']):
             self.result=None
             self.volume_preview=None
+            self.dv_preview=None
             raise Refusal('Run/session/document receipt is stale or forged')
         return r
 
-    def _volume_context(self, slurry, volume):
+    def _preview_context(self, slurry):
         self.folder_check(); baseline = self.current()
         if baseline is None or baseline['run_outcome'] != 'PARTIAL_FINDINGS_ONLY':
             raise Refusal('CURRENT_ADMITTED_BASELINE_REQUIRED')
@@ -221,12 +227,124 @@ class PrivateSession:
         if (type(slurry) is not str or slurry not in self.source_catalog['procedure']['roles']
                 or slurry not in operator['slurries'] or operator['active_fluids'].count(slurry) != 1):
             raise Refusal('EXACT_ACTIVE_ORDINARY_SLURRY_REQUIRED')
-        if type(volume) not in (int, float) or not math.isfinite(volume) or volume <= 0:
-            raise Refusal('FINITE_POSITIVE_PROPOSED_VOLUME_REQUIRED')
         return baseline, {'baseline_report_id': baseline['report_id'], 'session_id': self.session_id,
             'revision': self.revision, 'original_document_sha256': baseline['document_sha256'],
             'original_operator_sha256': receipt['cement_operator_sha256'], 'source_pins': baseline['pins'],
-            'slurry': slurry, 'proposed_client_volume_bbl': volume}
+            'slurry': slurry}
+
+    def _volume_context(self, slurry, volume):
+        baseline, request = self._preview_context(slurry)
+        if type(volume) not in (int, float) or not math.isfinite(volume) or volume <= 0:
+            raise Refusal('FINITE_POSITIVE_PROPOSED_VOLUME_REQUIRED')
+        return baseline, dict(request, proposed_client_volume_bbl=volume)
+
+    def _dv_context(self, slurry, value):
+        baseline, request = self._preview_context(slurry)
+        if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+            raise Refusal('FINITE_NONNEGATIVE_EXPLICIT_DV_REQUIRED')
+        return baseline, dict(request, corrected_dead_volume_bbl=value)
+
+    def current_dead_volume_preview(self, slurry, value):
+        try:
+            _, request = self._dv_context(slurry, value)
+            request_sha = digest(request)
+            if request_sha != self.dv_request_sha:
+                self.dv_preview = None
+            self.dv_request_sha = request_sha
+            preview = self.dv_preview
+            if preview is not None and (preview['receipt']['request'] != request
+                    or preview['receipt']['request_sha256'] != request_sha
+                    or preview['receipt']['impact_sha256'] != digest(preview['impact'])
+                    or preview['receipt']['g06b_bindings'] != preview['impact']['bindings']
+                    or preview['preview_id'] != digest({k: v for k, v in preview.items() if k != 'preview_id'})):
+                raise Refusal('STALE_OR_FORGED_DV_PREVIEW')
+            return preview
+        except (ValueError, OSError, KeyError, TypeError, ArithmeticError):
+            self.dv_preview = None; self.dv_request_sha = None
+            raise Refusal('DV_PREVIEW_NOT_VERIFIABLE') from None
+
+    def preview_dead_volume(self, slurry, value):
+        """Fresh G06-B proof on the owning original; no copy, formula or Word edit."""
+        self.dv_preview = None
+        try:
+            self.current_dead_volume_preview(slurry, value)
+            baseline, request = self._dv_context(slurry, value)
+            baseline_sha = digest(baseline)
+            operator = json.loads(json.dumps(baseline['receipt']['inputs_snapshot']['cement'], allow_nan=False))
+            original = safe_input(self.document); pins = identities()
+            volume_sha = digest(self.volume_preview)
+            from g06b_dead_volume import inspect_selection, dead_volume_impact, private_path as dv_path
+            path = dv_path(self.document, '.docx')
+            inspection = inspect_selection(path, operator, slurry)
+            if (inspection.get('schema') != 'g06b.1' or inspection.get('status') != 'PARTIAL_FINDINGS_ONLY'
+                    or inspection.get('operation') != 'SELECTION_INSPECTION'
+                    or inspection['original_c03'] != baseline['results']['C03']
+                    or inspection['docx_written'] is not False or inspection['word_modified'] is not False):
+                raise Refusal('G06B_SELECTION_NOT_VERIFIABLE')
+            bindings = inspection['bindings']
+            expected = dict(pins, original_document_sha256=request['original_document_sha256'],
+                operator_sha256=request['original_operator_sha256'], selected_slurry=slurry,
+                c03_sha256=digest(baseline['results']['C03']), selected_claims_sha256=digest(inspection['selected_claims']))
+            if bindings != expected:
+                raise Refusal('G06B_SELECTION_BINDING_DRIFT')
+            edit = {'schema': 'g06b.1', 'bindings': bindings, 'slurry': slurry, 'corrected_dead_volume_bbl': value}
+            impact = dead_volume_impact(path, operator, edit)
+            if (impact.get('schema') != 'g06b.1' or impact.get('status') != 'PARTIAL_FINDINGS_ONLY'
+                    or impact.get('operation') != 'EXPLICIT_DV_IMPACT' or impact['bindings'] != bindings
+                    or impact['original_c03'] != baseline['results']['C03']
+                    or impact['selected_claims'] != inspection['selected_claims']
+                    or impact['docx_written'] is not False or impact['word_modified'] is not False
+                    or impact['unresolved_dependencies'] != inspection['unresolved_dependencies']):
+                raise Refusal('G06B_IMPACT_BINDING_DRIFT')
+            c04 = impact['c04']; selected = c04['selected_dead_volume_preview']; ledger = impact['impact_ledger']
+            if (c04['status'] != 'PARTIAL_FINDINGS_ONLY' or c04['schema'] != 'c04.1'
+                    or c04['c03'] != baseline['results']['C03'] or c04['docx_written'] is not False
+                    or c04['source_sha'] != pins['source_sha'] or c04['accepted_parent_sha256'] != c04_runtime.PINS
+                    or c04['hashes']['original_document_sha256'] != request['original_document_sha256']
+                    or c04['hashes']['new_document_sha256'] != request['original_document_sha256']
+                    or c04['hashes']['original_operator_sha256'] != digest(operator)
+                    or c04['hashes']['new_operator_sha256'] != digest(operator)
+                    or c04['hashes']['edit_request_sha256'] != digest({'slurry': slurry, 'corrected_dead_volume_bbl': value})
+                    or selected['slurry'] != slurry or selected['proposed_dead_volume_bbl'] != value
+                    or selected['unaffected']['source_invariants_preserved'] is not True
+                    or selected['unaffected']['base_reference'] != baseline['results']['C03']['c02']['reference']['slurries'][slurry]
+                    or selected['unaffected']['unselected_slurry_references'] != {
+                        k: v for k, v in baseline['results']['C03']['c02']['reference']['slurries'].items() if k != slurry}
+                    or selected['unaffected']['raw_lab_findings_sha256_before'] != selected['unaffected']['raw_lab_findings_sha256_after']
+                    or ledger['historical_exact_delta'] is not None or ledger['historical_change'] != 'NOT_VERIFIABLE'
+                    or ledger['explicit_dead_volume_bbl'] != value
+                    or ledger['before_dv_interval'] != selected['original_inferred_dead_volume']
+                    or ledger['pure_mix_water_full_precision_bbl'] != selected['pure_mix_water_full_precision_bbl']
+                    or ledger['source_after_total_preparation_water_full_precision_bbl'] != selected['new_preparation_water_full_precision_bbl']
+                    or ledger['source_after_NOTE_display_bbl'] != selected['new_preparation_water_note_display_bbl']
+                    or ledger['source_after_tables'] != selected['after_source_tables']
+                    or ledger['source_invariants_and_unselected_slurries'] != selected['unaffected']
+                    or len(ledger['gross_additives']) != len(selected['gross_additive_preview'])
+                    or any(row['source_after_full_precision'] is not None or row['historical_exact_delta'] is not None
+                        or row['source_after_display'] != source['after_source_display']
+                        or row['original_Word_records'] != source['word_records']
+                        for row, source in zip(ledger['gross_additives'], selected['gross_additive_preview']))):
+                raise Refusal('G06B_SOURCE_OR_UNCERTAINTY_DRIFT')
+            if (safe_input(dv_path(path, '.docx')) != original or identities() != pins
+                    or digest(operator) != request['original_operator_sha256']
+                    or self._dv_context(slurry, value)[1] != request or digest(self.current()) != baseline_sha
+                    or digest(self.volume_preview) != volume_sha):
+                raise Refusal('DV_PREVIEW_OR_BASELINE_CHANGED')
+            preview = {'status': 'PARTIAL_FINDINGS_ONLY', 'receipt': {'preview_run_id': uuid.uuid4().hex,
+                'request': request, 'request_sha256': digest(request), 'g06b_bindings': bindings,
+                'impact_sha256': digest(impact)}, 'impact': impact}
+            preview['preview_id'] = digest(preview)
+            receipt_path = self.folder/('dv-preview-'+preview['receipt']['preview_run_id']+'.json')
+            descriptor = os.open(receipt_path, os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW, 0o600)
+            with os.fdopen(descriptor, 'w') as out: json.dump(preview, out, allow_nan=False)
+            self.dv_preview = preview
+            return self.current_dead_volume_preview(slurry, value)
+        except subprocess.TimeoutExpired:
+            self.dv_preview = None; self.dv_request_sha = None
+            raise Refusal('DV_SOURCE_UNAVAILABLE') from None
+        except (ValueError, RuntimeError, OSError, KeyError, TypeError, ArithmeticError):
+            self.dv_preview = None; self.dv_request_sha = None
+            raise Refusal('DV_PREVIEW_NOT_VERIFIABLE') from None
 
     def current_volume_preview(self, slurry, volume):
         try:
@@ -336,6 +454,8 @@ class PrivateSession:
             raise Refusal('Input belongs to another session or escapes private storage')
         self.result=None
         self.volume_preview=None
+        self.dv_preview=None
+        self.dv_request_sha=None
         if revision is not None and revision!=self.revision: raise Refusal('Submission revision is stale')
         original = safe_input(path); pins = identities(); input_sha = digest(inputs)
         submitted=json.loads(json.dumps(inputs,sort_keys=True,allow_nan=False))
