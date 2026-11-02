@@ -4,6 +4,7 @@
     "c04/test_c04.py",
     "tests/test_migration.py",
     "tests/test_c06.py",
+    "tests/test_c07.py",
     "tests/test_c08.py",
     "tests/test_c10.py",
     "tests/test_g08a4_preview.py"
@@ -17,7 +18,6 @@
   ],
   "C": [
     "c03/test_c03.py",
-    "tests/test_c07.py",
     "tests/test_g06b.py",
     "tests/test_g07.py"
   ]
