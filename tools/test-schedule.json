@@ -5,7 +5,8 @@
     "tests/test_migration.py",
     "tests/test_c06.py",
     "tests/test_c08.py",
-    "tests/test_c10.py"
+    "tests/test_c10.py",
+    "tests/test_g08a4_preview.py"
   ],
   "B": [
     "c02/test_c02.py",
