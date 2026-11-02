@@ -196,7 +196,6 @@ def main():
                     preview = None; st.error('NOT_VERIFIABLE: G06-A source process timed out; no preview is available. Baseline unchanged.')
                 except (BadZipFile, ValueError, RuntimeError, OSError, KeyError, TypeError, ArithmeticError):
                     preview = None; st.error('INPUT_REJECTED / NOT_VERIFIABLE: G06-A selection, physical claims or source reference could not be proved. No preview is available; baseline unchanged.')
-            st.text('G06-B: NOT_RUN — separate explicit Dead Volume impact is not selected.')
             if preview is None:
                 st.text('G06-A: NOT_RUN / NOT_VERIFIABLE — a current admitted C02/C03 run, one selected slurry and a finite positive proposal are required; no preview is credited.')
             else:
@@ -216,6 +215,49 @@ def main():
                 st.text(impact['reference_dead_volume_policy'])
                 with st.expander('G06-A preview bindings and complete provenance'):
                     st.json(preview)
+        with st.expander('Optional G06-B explicit Dead Volume impact'):
+            st.caption('Read-only source what-if. Historical DV is inferred and nonunique, never measured. Client Requested Volume, baseline findings, engineer message and original Word remain unchanged. C09 DV is not reused.')
+            cop = result['receipt']['inputs_snapshot'].get('cement') or {}
+            roles = [n for n in catalog['order'] if n in cop.get('slurries', {}) and n in catalog['procedure']['roles']]
+            selected_dv = st.selectbox('G06-B selected active ordinary slurry', roles, index=None, key='g06b:selected')
+            proposed_dv = st.number_input('G06-B independent proposed Dead Volume (bbl)', min_value=0.0, value=None, key='g06b:dv')
+            dv_preview = None; dv_ready = False
+            try:
+                dv_preview = session.current_dead_volume_preview(selected_dv, proposed_dv); dv_ready = True
+            except (ValueError, OSError, KeyError, TypeError, ArithmeticError):
+                pass  # DV controls invalidate only their own optional evidence.
+            if st.button('Preview explicit Dead Volume impact', disabled=not dv_ready):
+                try:
+                    with st.spinner('Proving original NOTE/gross claims and source impact'):
+                        dv_preview = session.preview_dead_volume(selected_dv, proposed_dv)
+                except (BadZipFile, ValueError, RuntimeError, OSError, KeyError, TypeError, ArithmeticError):
+                    dv_preview = None
+                    st.error('NOT_VERIFIABLE: G06-B physical claims, current receipt or source availability could not be proved. No DV preview is credited; baseline unchanged.')
+            if dv_preview is None:
+                st.text('G06-B: NOT_RUN / NOT_VERIFIABLE — select one current admitted ordinary slurry and an independent finite DV of zero or greater, then explicitly preview.')
+            else:
+                impact = dv_preview['impact']; ledger = impact['impact_ledger']
+                note = impact['selected_claims']['water']
+                st.text('G06-B: EXPLICIT_DV_IMPACT — PARTIAL_FINDINGS_ONLY')
+                st.text('G06-B preview receipt: '+dv_preview['receipt']['preview_run_id'])
+                st.text('DV preview identity: '+dv_preview['preview_id'])
+                st.text('Original Word NOTE — unchanged: '+report.ascii_text(note['raw_text']))
+                st.json({'original_NOTE_locator': note['locator'],
+                    'historical_DV_qualification': ledger['before_qualification'],
+                    'inferred_nonunique_historical_DV_bbl': ledger['before_dv_interval'],
+                    'explicit_proposed_DV_bbl': ledger['explicit_dead_volume_bbl'],
+                    'unchanged_pure_Mix_Water_full_precision_bbl': ledger['pure_mix_water_full_precision_bbl'],
+                    'source_after_total_preparation_water_full_precision_bbl': ledger['source_after_total_preparation_water_full_precision_bbl'],
+                    'source_after_NOTE_display_bbl': ledger['source_after_NOTE_display_bbl'],
+                    'historical_exact_delta': ledger['historical_exact_delta']})
+                st.text('Gross additives — original Word claims/locators and proposed source displays')
+                st.dataframe(pd.DataFrame([{k: report.ascii_text(v) if v is not None else 'null'
+                    for k, v in row.items()} for row in ledger['gross_additives']]), hide_index=True, width='stretch')
+                st.text('Unresolved dependencies')
+                st.dataframe(pd.DataFrame(impact['unresolved_dependencies']), hide_index=True, width='stretch')
+                st.caption('Gross full precision is unexposed/null. Display agreement is not an exact historical change. No NOTE, Procedure, Summary, measured Lab or Word correction is generated; no whole-program certification.')
+                with st.expander('G06-B source invariants, original C03 and complete provenance'):
+                    st.json(dv_preview)
     else:
         st.info('NOT_RUN — enter independent inputs and select Run Check. Previous results and messages are cleared when document or inputs change.')
     with st.expander('Coverage and blocked dependencies'):
