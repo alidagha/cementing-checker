@@ -2,6 +2,13 @@
 
 Independent First · Integration Optional · Simplicity Always.
 
+## Full-coverage standalone product target (Owner decision — 2026-11-03)
+
+The final Checker is **not** limited to today's partial findings: one complete template-format DOCX in, independent checking of all applicable in-scope claims for all 15 jobs, selectable safe corrections (plus explicit manual handling where unsafe), full before/after audit report and downloadable corrected DOCX out. It must run with a **locally packaged verified engineering engine/template**, without fetching or launching the separate Cementing App.
+
+See [full-product delivery contract](docs/product/full-checker-standalone-contract.md) and [dated release-gate ledger](docs/product/full-checker-release-ledger.json). **This is the release target, not a claim of implemented completeness.** The current implemented-scope limits and security/Golden blockers documented below remain in force until independently verified and merged.
+
+
 This public repository contains the independent Cementing Program Checker and its implemented-scope regression checks. It does not distribute the pinned upstream App, Word template, libraries, original fixtures or recovery archives. Publication is not production acceptance or a new license grant.
 
 C01R extracts ordered DOCX claims. C02 calls the original automatic App engine for selected numeric comparisons. C03 attributes preparation-water notes/tanks and reports inferred allowance intervals. C04 previews an explicit selected ordinary-slurry Dead Volume proposal without editing Word. Results remain `PARTIAL_FINDINGS_ONLY`; CLI exit 0 is not program approval.

@@ -1,0 +1,266 @@
+{
+  "schema": "checker-full-product-release-ledger.v1",
+  "as_of": "2026-11-03",
+  "authority": "owner full-scope standalone Checker objective",
+  "checker_main_at_inventory": "c2a7f6a762120e03f63cab7766ecdceb9accd021",
+  "app_pinned_source": "60dffefb8c941ad90cb7caba0992126a35803717",
+  "note": "Planning snapshot only. No field is a certification. Change status only when authenticated evidence is recorded; no overall PASS from partial coverage.",
+  "status_vocabulary": [
+    "VERIFIED",
+    "PARTIAL",
+    "BLOCKED",
+    "NOT_RUN",
+    "EXCLUDED"
+  ],
+  "release_gates": [
+    {
+      "id": "secure_delivery",
+      "status": "BLOCKED",
+      "evidence": "PR #22 unmerged; hosted A/B regression red",
+      "acceptance": "real browser cross-session and five revocations, exact-head A/B/C and aggregate success, merged main"
+    },
+    {
+      "id": "standalone_runtime",
+      "status": "BLOCKED",
+      "evidence": "tools/provision.py currently fetches App source pin",
+      "acceptance": "complete locally verified engine/template bundle, clean network-denied install and execution"
+    },
+    {
+      "id": "fifteen_jobs",
+      "status": "NOT_RUN",
+      "evidence": "docs/uat/job-manifest.json contains 15 unavailable unauthenticated cases",
+      "acceptance": "all 15 authentic current-template golden A–H"
+    },
+    {
+      "id": "cross_case_22",
+      "status": "PARTIAL",
+      "evidence": "docs/uat/cross-case-matrix.json historical component statuses",
+      "acceptance": "22 applicable cross-case evidence with negative mutation pack and no silent omissions"
+    },
+    {
+      "id": "all_claims",
+      "status": "PARTIAL",
+      "evidence": "C01R–C09 are supported partial comparison adapters with explicit exclusions",
+      "acceptance": "all applicable in-scope numeric, tables, fluid train, lab, hardware, narrative and special job claims checked"
+    },
+    {
+      "id": "full_corrections",
+      "status": "PARTIAL",
+      "evidence": "C10 current code safely edits selected ordinary Yield/Sacks only",
+      "acceptance": "all source-proved safe changes, manual path for unsafe changes, full dependency cascades and recheck"
+    },
+    {
+      "id": "audit_report",
+      "status": "PARTIAL",
+      "evidence": "G07 partial findings and editable message; no complete before/after correction ledger",
+      "acceptance": "before/after per-finding change ledger and downloadable engineer audit report"
+    },
+    {
+      "id": "native_word",
+      "status": "NOT_RUN",
+      "evidence": "no authenticated native-Word full 15-job UAT",
+      "acceptance": "verified DOCX rendering and structural/edit preservation on release platform"
+    },
+    {
+      "id": "offline_distribution",
+      "status": "NOT_RUN",
+      "evidence": "Python/pinned dependencies and network App acquisition presently required",
+      "acceptance": "reproducible standalone release packaging and clean install without App or network"
+    },
+    {
+      "id": "release_acceptance",
+      "status": "BLOCKED",
+      "evidence": "all mandatory functional/security/golden/packaging gates not certified",
+      "acceptance": "independent exact-artifact acceptance and owner approval"
+    }
+  ],
+  "job_cases": [
+    {
+      "id": "J01",
+      "golden_status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "J02",
+      "golden_status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "J03",
+      "golden_status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "J04",
+      "golden_status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "J05",
+      "golden_status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "J06",
+      "golden_status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "J07",
+      "golden_status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "J08",
+      "golden_status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "J09",
+      "golden_status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "J10",
+      "golden_status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "J11",
+      "golden_status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "J12",
+      "golden_status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "J13",
+      "golden_status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "J14",
+      "golden_status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "J15",
+      "golden_status": "NOT_RUN",
+      "evidence": null
+    }
+  ],
+  "cross_cases": [
+    {
+      "id": "X01",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X02",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X03",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X04",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X05",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X06",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X07",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X08",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X09",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X10",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X11",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X12",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X13",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X14",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X15",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X16",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X17",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X18",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X19",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X20",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X21",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "X22",
+      "complete_acceptance": "NOT_RUN",
+      "evidence": null
+    }
+  ]
+}
