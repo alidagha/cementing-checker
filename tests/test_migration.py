@@ -16,7 +16,7 @@ def certificate_fixture():
         'reports':[{'nodeid':m[0]+'::test_one','phase':p,'outcome':'passed','xfail':False} for p in ('setup','call','teardown')]} for s,m in schedule.items()}
     return schedule,discovery,shards
 
-def test_complete_native_routing_and_phase_evidence():
+def test_complete_native_routing_and_phase_evidence(tmp_path):
     s,d,r=certificate_fixture()
     assert ci.certify(d,r,s)['tests']==3
     for kind in ('gap','overlap','skip','phase','missing-shard','warning','drift'):
@@ -29,6 +29,83 @@ def test_complete_native_routing_and_phase_evidence():
         if kind=='warning':rr['A']['warnings']=['warning']
         if kind=='drift':rr['A']['nodeids']=['test_a.py::unknown']
         with pytest.raises(ValueError):ci.certify(dd,rr,ss)
+    progress_controls(tmp_path)
+
+
+def progress_controls(tmp_path):
+    """Real hook completion/TERM survival; diagnostic evidence never certifies tests."""
+    import os
+    import signal
+    import shutil
+    import subprocess
+    import sys
+    import time
+    from tools.ci_progress import Journal, read_journal
+    root = Path(__file__).resolve().parents[1]
+    mini = tmp_path/'diagnostic-control'
+    (mini/'tools').mkdir(parents=True)
+    for name in ('conftest.py', 'tools/ci.py', 'tools/ci_progress.py', 'upstream.lock.json',
+                 'accepted.lock.json', 'requirements.txt', 'tools/test-schedule.json'):
+        shutil.copyfile(root/name, mini/name)
+    identity = dict(ci.lock_identity(mini), head='a'*40, tree='b'*40, run='123', attempt='1')
+    binding = {k:identity[k] for k in ('head', 'tree', 'run', 'attempt')}
+    binding['shard'] = 'A'
+    proof = mini/'proof.json'
+    proof.write_text(json.dumps(identity))
+    control = mini/'test_control.py'
+    control.write_text("import time\ndef test_normal(): assert True\ndef test_terminated(): time.sleep(30)\n")
+    env = dict(os.environ, GITHUB_ACTIONS='true', CHECKER_SHARD='A', CHECKER_TESTED_HEAD='a'*40,
+               GITHUB_RUN_ID='123', GITHUB_RUN_ATTEMPT='1', CHECKER_CHECKOUT_PROOF=str(proof),
+               PYTHONDONTWRITEBYTECODE='1')
+    timings = {}
+    for enabled in (False, True):
+        journal = mini/'normal.jsonl'
+        if enabled: env['CHECKER_DIAGNOSTIC_FILE'] = str(journal)
+        else: env.pop('CHECKER_DIAGNOSTIC_FILE', None)
+        started = time.monotonic()
+        result = subprocess.run([sys.executable, '-B', '-m', 'pytest', '-p', 'no:cacheprovider',
+            '-q', 'test_control.py::test_normal'], cwd=mini, env=env, capture_output=True, timeout=20)
+        timings[str(enabled)] = time.monotonic()-started
+        assert result.returncode == 0, 'Diagnostic normal-completion control failed'
+    records = read_journal(journal, binding)
+    assert [(r['phase'], r['edge']) for r in records if r['kind']=='phase'] == [
+        (phase, edge) for phase in ('setup', 'call', 'teardown') for edge in ('start', 'finish')]
+    assert any(r['kind']=='resources' and r['available'] for r in records)
+    # Generous absolute overhead ceiling catches a broken sampler/fsync path, not host noise.
+    assert timings['True']-timings['False'] < 2
+    (tmp_path/'diagnostic-overhead.json').write_text(json.dumps(timings))
+    raw = journal.read_bytes()
+    for name, altered in [('malformed', b'not-json\n'), ('tampered', raw.replace(b'"seq":0', b'"seq":9', 1))]:
+        bad = mini/(name+'.jsonl'); bad.write_bytes(altered)
+        with pytest.raises((ValueError, KeyError)): read_journal(bad, binding)
+    with pytest.raises(ValueError): read_journal(journal, dict(binding, attempt='2'))
+    with pytest.raises(FileNotFoundError): read_journal(mini/'missing.jsonl', binding)
+    privacy = mini/'privacy.jsonl'
+    writer = Journal(privacy, binding)
+    writer.phase(1, 'test_control.py::test_private[SECRET_INPUT_/private/location]', 'call', 'start')
+    writer.close()
+    assert b'SECRET_INPUT' not in privacy.read_bytes() and b'/private/location' not in privacy.read_bytes()
+    # TERM the actual pytest process group after its fsynced in-flight call record.
+    interrupted = mini/'interrupted.jsonl'; audit = mini/'unfinished-audit.json'
+    env['CHECKER_DIAGNOSTIC_FILE'] = str(interrupted)
+    child = subprocess.Popen([sys.executable, '-B', '-m', 'pytest', '-p', 'no:cacheprovider',
+        '--audit-file', str(audit), '-q', 'test_control.py::test_terminated'], cwd=mini, env=env,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    try:
+        deadline = time.monotonic()+15
+        while time.monotonic() < deadline:
+            if interrupted.exists():
+                seen = read_journal(interrupted, binding)
+                if any(r['kind']=='phase' and r['phase']=='call' and r['edge']=='start' for r in seen): break
+            time.sleep(.02)
+        else: raise AssertionError('No native in-flight phase before deadline')
+    finally:
+        if child.poll() is None: os.killpg(child.pid, signal.SIGTERM)
+        child.wait(timeout=5)
+    seen = read_journal(interrupted, binding)
+    assert child.returncode == -signal.SIGTERM and not audit.exists()
+    assert [(r['phase'], r['edge']) for r in seen if r['kind']=='phase'][-1] == ('call', 'start')
+    assert not any(r['kind']=='observer_stop' for r in seen)
 
 def test_final_schedule_bytes_hash_and_mutation(tmp_path):
     (tmp_path/'tools').mkdir()

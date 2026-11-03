@@ -124,6 +124,7 @@ jobs:
         shell: bash
         working-directory: ${{ runner.temp }}/checker-runtime
         env:
+          CHECKER_DIAGNOSTIC_FILE: ${{ runner.temp }}/checker-progress-${{ matrix.shard }}.jsonl
           TMPDIR: ${{ runner.temp }}/checker-runtime/tmp
           XDG_CACHE_HOME: ${{ runner.temp }}/checker-runtime/cache
           XDG_CONFIG_HOME: ${{ runner.temp }}/checker-runtime/cache/config
@@ -141,6 +142,13 @@ jobs:
           }
           trap finish EXIT
           timeout --signal=TERM --kill-after=15s 870s python -B tools/ci.py run --shard "$CHECKER_SHARD" > "$phase_log" 2>&1
+      - name: Upload nonauthoritative timeout diagnostic metadata
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: diagnostic-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
+          path: ${{ runner.temp }}/checker-progress-${{ matrix.shard }}.jsonl
+          if-no-files-found: error
       - name: Seal current-attempt native evidence
         if: always()
         run: |
