@@ -10,10 +10,12 @@ from io import BytesIO
 import subprocess
 import sys
 import tempfile
+from threading import RLock
 import uuid
 from zipfile import BadZipFile
 
 from c10_corrections import ROOT, Refusal, digest, identities, literal, private_path
+from c10_delivery import locked, revoke
 from docx import Document
 from checker_parser import safe_input, parse_docx
 
@@ -157,6 +159,7 @@ def catalog():
 
 class PrivateSession:
     def __init__(self):
+        self._delivery_lock = RLock()
         identities()
         self.folder = Path(tempfile.mkdtemp(prefix='g07-', dir=ROOT/'c04/tmp'))
         self.session_id=uuid.uuid4().hex
@@ -170,7 +173,9 @@ class PrivateSession:
         self.dv_request_sha = None
         self._clear_copy()
 
+    @locked
     def _clear_copy(self):
+        revoke(self)
         self.copy_proposal = None
         self.copy_output = None
         self.copy_choice_sha = None
@@ -181,6 +186,7 @@ class PrivateSession:
             raise Refusal('Private session directory unavailable')
         identities()
 
+    @locked
     def invalidate(self, revision):
         changed = revision != self.revision
         if changed:
@@ -193,6 +199,7 @@ class PrivateSession:
         self.revision = revision
         return changed
 
+    @locked
     def current(self):
         if self.result is None:
             self.volume_preview = None
@@ -297,6 +304,7 @@ class PrivateSession:
                         or item['slurry'] not in request['ordinary_slurries'])):
                 raise Refusal('C10_PROPOSAL_DRIFT')
 
+    @locked
     def current_copy_proposals(self):
         try:
             baseline, request = self._copy_context(); value = self.copy_proposal
@@ -311,6 +319,7 @@ class PrivateSession:
             self._clear_copy()
             raise Refusal('C10_PROPOSAL_NOT_VERIFIABLE') from None
 
+    @locked
     def inspect_copy_proposals(self):
         self._clear_copy()
         try:
@@ -352,11 +361,14 @@ class PrivateSession:
         choice = {'proposal_id':inspection['proposal_id'], 'selected_ids':selected_ids, 'confirmed':True}
         return inspection, selected, choice
 
+    @locked
     def current_created_copy(self, selected_ids, confirmed):
         try:
             inspection, selected, choice = self._copy_choice(selected_ids, confirmed)
             choice_sha = digest(choice)
-            if choice_sha != self.copy_choice_sha: self.copy_output = None
+            if choice_sha != self.copy_choice_sha:
+                revoke(self)
+                self.copy_output = None
             self.copy_choice_sha = choice_sha
             value = self.copy_output
             if value is not None and (value['receipt']['request'] != inspection['receipt']['request']
@@ -376,10 +388,13 @@ class PrivateSession:
                 raise Refusal('C10_COPY_RECEIPT_DRIFT')
             return value
         except (BadZipFile, ValueError, RuntimeError, OSError, KeyError, TypeError, ArithmeticError):
+            revoke(self)
             self.copy_output = None; self.copy_choice_sha = None
             raise Refusal('C10_COPY_NOT_VERIFIABLE') from None
 
+    @locked
     def create_selected_copy(self, selected_ids, confirmed):
+        revoke(self)
         self.copy_output = None
         try:
             self.current_created_copy(selected_ids, confirmed)
@@ -441,9 +456,11 @@ class PrivateSession:
             self.copy_output = dict(value, bytes=data)
             return self.current_created_copy(selected_ids, confirmed)
         except subprocess.TimeoutExpired:
+            revoke(self)
             self.copy_output = None; self.copy_choice_sha = None
             raise Refusal('C10_SOURCE_UNAVAILABLE') from None
         except (BadZipFile, ValueError, RuntimeError, OSError, KeyError, TypeError, ArithmeticError):
+            revoke(self)
             self.copy_output = None; self.copy_choice_sha = None
             raise Refusal('C10_COPY_NOT_VERIFIABLE') from None
 
@@ -657,6 +674,7 @@ class PrivateSession:
         if parsed['status'] != 'EXTRACTED_UNVERIFIED': raise Refusal('Malformed or unsupported DOCX structure')
         return path
 
+    @locked
     def check(self, path, inputs, revision=None, draft=None):
         self.folder_check(); path = Path(path)
         if path.parent != self.folder or path.resolve(strict=True) != path or path.is_symlink():

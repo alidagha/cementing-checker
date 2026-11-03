@@ -1,4 +1,4 @@
-"""Run from a provisioned Git-free runtime: streamlit run checker_ui.py."""
+"""Run from a provisioned Git-free runtime: streamlit run c10_delivery.py."""
 from hashlib import sha256
 import json
 from subprocess import TimeoutExpired
@@ -6,6 +6,7 @@ from zipfile import BadZipFile
 import pandas as pd
 import streamlit as st
 import g07_report as report
+import c10_delivery as delivery
 
 
 def main():
@@ -303,9 +304,11 @@ def main():
                 if created is not None:
                     st.text('C10: COPY_CREATED — selected C02 cells rechecked; dependent program remains partial/manual.')
                     st.text('C10 copy receipt: '+created['receipt']['copy_run_id'])
-                    st.warning('**Known download privacy limitation (G08-A6):** Anyone who obtains a corrected DOCX download URL may be able to download that file from a different browser session, even without an uploaded program or Checker receipt. Do not use this feature for confidential, personal, or customer-sensitive programs. The correction mechanism does not alter the original DOCX. This limitation is documented and remains unresolved.')
-                    st.download_button('Download selected-copy DOCX', data=created['bytes'], file_name='checker-selected-copy.docx',
-                        mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document', on_click='ignore')
+                    st.caption('C10 delivery requires the current selection, consent and run. Changing them, independent inputs or the upload revokes subsequent transfers. Saved files cannot be recalled. PARTIAL_FINDINGS_ONLY; original Word unchanged.')
+                    try:
+                        st.html(delivery.issue(session, st.context.cookies.get(delivery.COOKIE), selected_ids, consent))
+                    except (ValueError, RuntimeError, OSError, KeyError, TypeError):
+                        st.error('NOT_VERIFIABLE: authorized delivery unavailable. Use the documented entrypoint; no download is available.')
                     with st.expander('C10 selected/unselected recheck and copy provenance'):
                         st.json({k:v for k,v in created.items() if k != 'bytes'})
                 with st.expander('C10 complete proposal and source provenance'):
