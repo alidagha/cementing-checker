@@ -91,13 +91,44 @@ def test_provision_from_actual_git_checkout_excludes_only_git(tmp_path,monkeypat
     lock['snapshot_manifest_sha256']=hashlib.sha256(manifest.encode()).hexdigest()
     (checkout/'upstream.lock.json').write_text(json.dumps(lock))
     monkeypatch.setattr(provision,'ROOT',checkout)
-    monkeypatch.setattr(provision.urllib.request,'urlopen',lambda *a,**k:io.BytesIO(archive()))
+    # The same independently hashed transport fixture is now Checker-local.
+    bundle=checkout/'checker_engine'/(lock['commit']+'.tar.gz')
+    bundle.parent.mkdir();bundle.write_bytes(archive())
     destination=tmp_path/'runtime'
-    result=provision.create(destination)
+    import socket
+    import urllib.request
+    attempts=[]
+    def network_forbidden(*args,**kwargs):
+        attempts.append(True)
+        raise AssertionError('Local provisioning attempted network access')
+    with monkeypatch.context() as denied:
+        denied.setattr(urllib.request,'urlopen',network_forbidden)
+        denied.setattr(socket.socket,'connect',network_forbidden)
+        denied.setattr(socket,'getaddrinfo',network_forbidden)
+        result=provision.create(destination)
+    assert attempts==[]
     assert result['verified_source_files']==1
     assert (destination/'snapshot/file.py').read_bytes()==data
     assert not any('.git' in p.relative_to(destination).parts for p in destination.rglob('*'))
+    assert not (destination/'checker_engine').exists()
+    assert result['source_transport']=='LOCAL_VERIFIED_BUNDLE'
     provision.verify_candidate(destination)
+    # Missing template/source, changed bytes, extra member, traversal and links
+    # refuse before a destination is created, with no network fallback.
+    original_bundle=bundle.read_bytes()
+    for raw in (archive(data=b'changed'),archive('root/extra.py'),archive('../escape'),archive(link=True)):
+        bundle.write_bytes(raw)
+        rejected=tmp_path/'reject-bundle'
+        with pytest.raises(ValueError):provision.create(rejected)
+        assert not rejected.exists()
+    bundle.unlink()
+    with pytest.raises(ValueError):provision.create(tmp_path/'reject-missing')
+    bundle.symlink_to(tmp_path/'outside')
+    with pytest.raises(ValueError):provision.create(tmp_path/'reject-bundle-link')
+    bundle.unlink();bundle.write_bytes(original_bundle)
+    extra=bundle.parent/'unexpected';extra.write_text('extra')
+    with pytest.raises(ValueError):provision.create(tmp_path/'reject-bundle-extra')
+    extra.unlink()
     (checkout/'escape').symlink_to(tmp_path/'outside')
     with pytest.raises(ValueError,match='symlink'):provision.create(tmp_path/'reject-link')
     (checkout/'escape').unlink()

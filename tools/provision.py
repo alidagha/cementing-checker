@@ -1,4 +1,4 @@
-"""Build a fresh private runtime; upstream bytes never become public candidate files."""
+"""Build a fresh private runtime from the immutable Checker-local engine bundle."""
 import argparse
 import hashlib
 import io
@@ -9,7 +9,6 @@ import shutil
 import subprocess
 import sys
 import tarfile
-import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -31,6 +30,8 @@ def verify_members(raw, lock):
             name = '/'.join(parts[1:])
             if not member.isfile() or name not in wanted or name in found:
                 raise ValueError('Unexpected/linked/duplicate source member')
+            if member.size > 32*1024*1024 or sum(len(v) for v in found.values())+member.size > 32*1024*1024:
+                raise ValueError('Expanded source archive too large')
             data = archive.extractfile(member).read()
             blob = hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
             if sha(data) != wanted[name]['sha256'] or blob != wanted[name]['git_blob']:
@@ -47,6 +48,22 @@ def verify_candidate(root):
             raise ValueError('Accepted Checker identity mismatch: '+item['path'])
 
 
+def bundled_source(root, lock):
+    """Only the exact locally packaged pin is eligible; never fall back to network."""
+    commit = lock['commit']
+    if len(commit)!=40 or any(c not in '0123456789abcdef' for c in commit):
+        raise ValueError('Invalid bundled source pin')
+    folder = Path(root)/'checker_engine'
+    name = commit+'.tar.gz'
+    if folder.is_symlink() or not folder.is_dir() or {p.name for p in folder.iterdir()}!={name}:
+        raise ValueError('Missing/extra/symlinked local engine bundle')
+    path = folder/name
+    if path.is_symlink() or not path.is_file() or path.stat().st_size>32*1024*1024:
+        raise ValueError('Invalid local engine bundle')
+    raw = path.read_bytes()
+    return verify_members(raw, lock), sha(raw)
+
+
 def create(destination):
     verify_candidate(ROOT)
     destination = Path(destination).absolute()
@@ -60,19 +77,15 @@ def create(destination):
     if any((p/'.git').exists() for p in (destination.parent, *destination.parents)):
         raise ValueError('Runtime cannot be inside a Git worktree')
     lock = json.loads((ROOT/'upstream.lock.json').read_text())
-    url = 'https://codeload.github.com/'+lock['repository']+'/tar.gz/'+lock['commit']
-    with urllib.request.urlopen(url, timeout=60) as response:
-        raw = response.read(32*1024*1024+1)
-    if len(raw)>32*1024*1024:
-        raise ValueError('Source archive too large')
-    files = verify_members(raw, lock)
+    files, bundle_sha = bundled_source(ROOT, lock)
     destination.mkdir(mode=0o700)
     for directory, directories, names in os.walk(ROOT, followlinks=False):
         for name in directories+names:
             if (Path(directory)/name).is_symlink():
                 raise ValueError('Candidate symlink prohibited')
         # A checkout's real Git directory/worktree marker is metadata, not input.
-        directories[:]=[name for name in directories if name!='.git']
+        # The archive is a build input, not a second copy inside the runtime.
+        directories[:]=[name for name in directories if name not in ('.git','checker_engine')]
         for name in names:
             if name=='.git':
                 continue
@@ -96,10 +109,9 @@ def create(destination):
     for group in ('', 'c02', 'c03', 'c04'):
         for folder in ('tmp','cache','fixtures','output','evidence'):
             (destination/group/folder).mkdir(parents=True, exist_ok=True)
-    return {'runtime':str(destination), 'external_source_url':url,
-            'archive_sha256':sha(raw),'verified_source_files':len(files),
-            'source_commit':lock['commit'],'template_blob':lock['template_blob'],
-            'public_source_redistribution':'NOT GRANTED; runtime only'}
+    return {'runtime':str(destination), 'source_transport':'LOCAL_VERIFIED_BUNDLE',
+            'archive_sha256':bundle_sha,'verified_source_files':len(files),
+            'source_commit':lock['commit'],'template_blob':lock['template_blob']}
 
 
 def seed():
