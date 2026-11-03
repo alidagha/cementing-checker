@@ -54,17 +54,33 @@ def progress_controls(tmp_path):
     proof.write_text(json.dumps(identity))
     control = mini/'test_control.py'
     control.write_text("import time\ndef test_normal(): assert True\ndef test_terminated(): time.sleep(30)\n")
+    # A nested control must not load the owning runtime's conftest as well as
+    # its copied conftest. Make that isolation requirement location-independent.
+    (tmp_path/'conftest.py').write_text(
+        "def pytest_addoption(parser): parser.addoption('--audit-file')\n")
     env = dict(os.environ, GITHUB_ACTIONS='true', CHECKER_SHARD='A', CHECKER_TESTED_HEAD='a'*40,
                GITHUB_RUN_ID='123', GITHUB_RUN_ATTEMPT='1', CHECKER_CHECKOUT_PROOF=str(proof),
                PYTHONDONTWRITEBYTECODE='1')
+    command = [sys.executable, '-B', '-m', 'pytest', '-p', 'no:cacheprovider',
+               '--rootdir', str(mini)]
+    isolated = [*command, '--confcutdir', str(mini)]
+    env.pop('CHECKER_DIAGNOSTIC_FILE', None)
+    unisolated = subprocess.run([*command, '-q', 'test_control.py::test_normal'],
+        cwd=mini, env=env, capture_output=True, timeout=20)
+    (mini/'unisolated.stdout').write_bytes(unisolated.stdout)
+    (mini/'unisolated.stderr').write_bytes(unisolated.stderr)
+    assert unisolated.returncode != 0
+    assert b"option names {'--audit-file'} already added" in unisolated.stderr
     timings = {}
     for enabled in (False, True):
         journal = mini/'normal.jsonl'
         if enabled: env['CHECKER_DIAGNOSTIC_FILE'] = str(journal)
         else: env.pop('CHECKER_DIAGNOSTIC_FILE', None)
         started = time.monotonic()
-        result = subprocess.run([sys.executable, '-B', '-m', 'pytest', '-p', 'no:cacheprovider',
-            '-q', 'test_control.py::test_normal'], cwd=mini, env=env, capture_output=True, timeout=20)
+        result = subprocess.run([*isolated, '-q', 'test_control.py::test_normal'],
+            cwd=mini, env=env, capture_output=True, timeout=20)
+        (mini/('normal-'+str(enabled)+'.stdout')).write_bytes(result.stdout)
+        (mini/('normal-'+str(enabled)+'.stderr')).write_bytes(result.stderr)
         timings[str(enabled)] = time.monotonic()-started
         assert result.returncode == 0, 'Diagnostic normal-completion control failed'
     records = read_journal(journal, binding)
@@ -88,7 +104,7 @@ def progress_controls(tmp_path):
     # TERM the actual pytest process group after its fsynced in-flight call record.
     interrupted = mini/'interrupted.jsonl'; audit = mini/'unfinished-audit.json'
     env['CHECKER_DIAGNOSTIC_FILE'] = str(interrupted)
-    child = subprocess.Popen([sys.executable, '-B', '-m', 'pytest', '-p', 'no:cacheprovider',
+    child = subprocess.Popen([*isolated,
         '--audit-file', str(audit), '-q', 'test_control.py::test_terminated'], cwd=mini, env=env,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     try:
