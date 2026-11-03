@@ -27,8 +27,9 @@ Seeding and C01R–C10 consumers keep their existing private paths and isolated 
 workers. There is no network retrieval or remote fallback in provisioning.
 
 Python 3.12 and the 51 pinned Python distributions must already be installed;
-offline wheel packaging belongs to a separate release gate. R1 does not import
-unmerged PR #22 or the planning branch. Existing mainline C10 download limitations,
-original/corrected Word UI scope and the future full audit report remain separate
-work. No Golden, whole-program, security or production-release certification is
-implied by local source availability.
+offline wheel packaging belongs to a separate release gate. R1 preserves the
+merged R0 session-authorized delivery, diagnostic controls and 60-minute CI policy
+from main; the separate planning branch is not imported. Full original/corrected
+Word coverage and the future full audit report remain separate work. No Golden,
+whole-program or production-release certification is implied by local source
+availability.
