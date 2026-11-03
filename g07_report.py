@@ -83,6 +83,40 @@ def clean_rows(rows):
     return result
 
 
+def standalone_spacer_input(inputs, context, source_catalog):
+    """Schema/choice admission only; the original C05 source owns the solve."""
+    def outcome(status, reason):
+        return None, {'status': status, 'reason': reason}
+    if type(context) is not dict or type(context.get('selected')) is not bool:
+        return outcome('INPUT_REJECTED', 'Explicit configured-Spacer selection required')
+    if not context['selected']:
+        return outcome('NOT_RUN', 'Configured Standalone Spacer not selected')
+    fields = {'mode', 'dead_vol', 'tank_name', 'limestone_available_lb', 'barite_available_lb'}
+    if set(context) - fields - {'selected'}:
+        return outcome('INPUT_REJECTED', 'Only original Standalone Spacer fields are permitted')
+    job = inputs.get('job_type'); mud = inputs.get('mud_type'); active = inputs.get('active_fluids')
+    if (job not in source_catalog['jobs'] or mud not in ('WBM', 'OBM') or type(active) is not list
+            or 'Spacer' not in active or len(active) != len(set(active))
+            or set(active) - set(source_catalog['eligible'][job][mud])):
+        return outcome('INPUT_REJECTED', 'Configured Spacer requires a source-eligible active Spacer')
+    if any(context.get(k) is None for k in ('mode', 'dead_vol', 'tank_name')):
+        return outcome('INPUT_INCOMPLETE', 'Independent mode, Dead Volume and source tank required')
+    if (context['mode'] not in source_catalog['standalone_spacer']['modes']
+            or context['tank_name'] not in source_catalog['standalone_spacer']['tanks'][job]):
+        return outcome('INPUT_REJECTED', 'Source mode or job-specific tank choice rejected')
+    numbers = ['dead_vol']
+    if context['mode'] == 'Limestone + Barite':
+        numbers += ['limestone_available_lb', 'barite_available_lb']
+    if any(context.get(k) is None for k in numbers):
+        return outcome('INPUT_INCOMPLETE', 'Both independent Mix inventories are required')
+    supplied_numbers = [k for k in ('dead_vol', 'limestone_available_lb', 'barite_available_lb') if context.get(k) is not None]
+    if any(type(context[k]) not in (int, float) or not math.isfinite(context[k]) for k in supplied_numbers):
+        return outcome('INPUT_REJECTED', 'Finite typed independent Spacer numbers required')
+    config = {k: v for k, v in context.items() if k != 'selected'}
+    return config, {'status': 'STRUCTURALLY_COMPLETE',
+                    'reason': 'Original C05 validation runs on explicit Run Check; no formulation credited yet'}
+
+
 def procedure_input(inputs, context, source_catalog):
     """Bind the optional UI subset to existing independent adapter inputs."""
     if not context.get('selected'):
@@ -688,6 +722,26 @@ class PrivateSession:
         original = safe_input(path); pins = identities(); input_sha = digest(inputs)
         submitted=json.loads(json.dumps(inputs,sort_keys=True,allow_nan=False))
         widget_snapshot=json.loads(json.dumps(draft,sort_keys=True,allow_nan=False)) if draft is not None else None
+        spacer_admission = None
+        fop = submitted.get('fluids')
+        spacer_context = widget_snapshot.get('standalone_spacer') if widget_snapshot is not None else None
+        if spacer_context is None and type(fop) is dict and type(fop.get('standalone_spacer')) is dict:
+            spacer_context = dict(fop['standalone_spacer'], selected=True)
+        if spacer_context is not None:
+            config, spacer_admission = standalone_spacer_input(submitted, spacer_context, self.source_catalog)
+            if fop is not None and type(fop) is not dict:
+                raise Refusal('C05 requires an independent fluid operator')
+            if fop is not None and digest(fop.get('standalone_spacer')) != digest(config):
+                raise Refusal('C05 configuration does not match the committed independent draft')
+            if spacer_context.get('selected') and fop is not None:
+                if (fop['job_type'] != submitted['job_type'] or fop.get('mud_type', submitted['mud_type']) != submitted['mud_type']
+                        or set(fop['fluids']) != set(submitted['active_fluids'])
+                        or widget_snapshot is not None and 'fluid_inputs' in widget_snapshot
+                        and digest(fop['fluids']) != digest(widget_snapshot['fluid_inputs'])):
+                    raise Refusal('C05 fluid identities do not match the independent selection/draft')
+            if config is not None and fop is None:
+                spacer_admission = {'status': 'INPUT_INCOMPLETE', 'reason': 'Independent general fluid inputs are incomplete'}
+            if spacer_admission['status'] == 'NOT_RUN': spacer_admission = None
         admission=cement_admission(submitted,self.source_catalog)
         parsed = parse_docx(path)
         if parsed['status'] != 'EXTRACTED_UNVERIFIED': raise Refusal('DOCX structure rejected')
@@ -717,6 +771,16 @@ class PrivateSession:
                 availability[name] = 'NOT_RUN / NOT_VERIFIABLE: independent section inputs incomplete or not selected.'
                 continue
             result = compare(path, submitted[key]); results[name] = result
+            if name == 'C05' and type(fop) is dict and fop.get('standalone_spacer') is not None:
+                if result['status'] == 'PARTIAL_FINDINGS_ONLY':
+                    source = result['reference']
+                    if (source['source_sha'] != pins['source_sha'] or source['operator_input_sha256'] != digest(fop)
+                            or source['reference']['spacer'] is None):
+                        raise Refusal('C05 configured source identity is unproved')
+                    spacer_admission = {'status': 'SOURCE_ADMITTED', 'reason': 'Original C05 Standalone Spacer source accepted the submitted configuration',
+                                        'operator_sha256': digest(fop)}
+                else:
+                    spacer_admission = {'status': 'INPUT_REJECTED', 'reason': 'Original C05 source rejected the configured formulation'}
             if result.get('source_document_sha256', sha256(original).hexdigest()) != sha256(original).hexdigest():
                 raise Refusal('Adapter returned stale document evidence')
             availability[name] = result['status']
@@ -752,6 +816,8 @@ class PrivateSession:
                 c09_status = 'PARTIAL_FINDINGS_ONLY' if qualified else 'NOT_VERIFIABLE: no source-backed Procedure/NOTES comparison completed.'
                 if qualified: completed.append('C09')
         availability['C09'] = c09_status
+        if spacer_admission is not None:
+            availability['Configured Standalone Spacer'] = spacer_admission['status'] + ': ' + spacer_admission['reason']
         if identities() != pins or safe_input(path) != original or digest(inputs) != input_sha:
             raise Refusal('Document, independent inputs or source changed during checking')
         rejected=any(r['status']!='PARTIAL_FINDINGS_ONLY' for r in results.values())
@@ -780,6 +846,8 @@ class PrivateSession:
             'C03_status':results.get('C03',{}).get('status','INPUT_REJECTED' if source_attempted else 'NOT_RUN'),
             'C09_operator_sha256':c09_operator_sha, 'C09_status':c09_status,
             'sacks_findings':[f for f in results.get('C03',{}).get('c02',{}).get('findings',[]) if f['field']=='sacks']}
+        if spacer_admission is not None:
+            report['receipt']['standalone_spacer_admission'] = spacer_admission
         report['message']=engineer_message(report)
         report['report_id']=report_identity(report);report['receipt']['report_id']=report['report_id']
         receipt_path=self.folder/('run-'+report['receipt']['run_id']+'.json')
@@ -880,6 +948,7 @@ if __name__ == '__main__' and sys.argv[1:] == ['--catalog']:
     install_audit(); verify_source(); sys.path.insert(0, str(SNAPSHOT))
     import materials_db as db
     import project_state
+    import standalone_spacer
     import placement, well_profile, cement_chart_model
     from narrative_source import summary_reference
     # These validators expose no public enum constants; read their locked literals.
@@ -889,6 +958,8 @@ if __name__ == '__main__' and sys.argv[1:] == ['--catalog']:
         'cement_roles': db.CEMENT_FORMULATION_FLUIDS, 'cement_names': [name for name in db.CEMENT_SG_REFERENCE],
         'hardware_fields': HARDWARE_FIELDS, 'hardware_descriptions': db.HARDWARE_DESCRIPTIONS,
         'eligible': {job: {mud: project_state.available_fluid_types({'job_type': job, 'mud_type': mud}) for mud in ('WBM', 'OBM')} for job in db.JOB_TYPES},
+        'standalone_spacer': {'modes': list(standalone_spacer.MODES),
+            'tanks': {job: db.get_available_tanks(job) for job in db.JOB_TYPES}},
         'procedure': {'jobs': [job for job, kind in cement_chart_model.CHART_JOBS.items() if kind == 'casing'],
             'roles': db.PLACEMENT_SLURRIES, 'tanks': {job: db.get_available_tanks(job) for job in db.JOB_TYPES},
             'well_types': [v for v in choices(well_profile.validate_well_inputs, 'Vertical') if v is not None],

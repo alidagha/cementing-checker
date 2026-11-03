@@ -854,3 +854,135 @@ def test_r2b_unprinted_active_Lead_never_borrows_Main_claims(controls):
     assert path.read_bytes() == controls['bad'] and result['word_modified'] is False
     wrong = deepcopy(request); del wrong['cement']['slurries']['Lead']
     assert g.cement_admission(wrong, session.source_catalog)['status'] == 'INPUT_REJECTED'
+
+
+@pytest.fixture(scope='module')
+def r2c_spacer_control():
+    from test_c05 import operator
+    from engineering_source import request
+    op = operator('Limestone + Barite'); op['job_type'] = 'CSG 20"'; op['mud_type'] = 'WBM'
+    op['fluids'].pop('Main'); op['standalone_spacer']['dead_vol'] = 0.0
+    with tempfile.TemporaryDirectory(dir=g.ROOT/'tmp', prefix='r2c-spacer-') as folder:
+        path = Path(folder)/'synthetic-Spacer.docx'; source = request('render_fluids', op, docx=str(path))
+        yield {'op':op, 'bytes':path.read_bytes(), 'source':source}
+
+
+def spacer_inputs(control):
+    op = deepcopy(control['op'])
+    inputs = {'job_type':op['job_type'], 'mud_type':'WBM', 'active_fluids':['Spacer'],
+              'cement':None, 'fluids':op, 'hardware':None, 'lab':None, 'summary':None}
+    draft = {'fluid_inputs':deepcopy(op['fluids']), 'standalone_spacer':dict(op['standalone_spacer'], selected=True)}
+    return inputs, draft
+
+
+@pytest.mark.parametrize('missing', ['mode', 'dead_vol', 'tank_name', 'limestone_available_lb', 'barite_available_lb'])
+def test_r2c_incomplete_configuration_keeps_general_fluid_findings(r2c_spacer_control, missing):
+    inputs, draft = spacer_inputs(r2c_spacer_control); draft['standalone_spacer'][missing] = None
+    del inputs['fluids']['standalone_spacer']
+    s = g.PrivateSession(); p = s.store('synthetic.docx', r2c_spacer_control['bytes'])
+    result = s.check(p, inputs, draft=draft)
+    assert result['receipt']['standalone_spacer_admission']['status'] == 'INPUT_INCOMPLETE'
+    assert result['results']['C05']['status'] == 'PARTIAL_FINDINGS_ONLY' and 'C05' in result['completed_adapters']
+    assert not any(f['field'].startswith('spacer.') for f in result['results']['C05']['findings'])
+    assert p.read_bytes() == r2c_spacer_control['bytes']
+
+
+@pytest.mark.parametrize('mutation', ['bool', 'string', 'nan', 'inactive', 'mode', 'tank'])
+def test_r2c_schema_and_source_choices_reject_unproved_configuration(r2c_spacer_control, mutation):
+    inputs, draft = spacer_inputs(r2c_spacer_control); context = draft['standalone_spacer']
+    if mutation in ('bool','string','nan'): context['dead_vol'] = {'bool':True,'string':'0','nan':float('nan')}[mutation]
+    elif mutation == 'inactive': inputs['active_fluids'] = ['Pre Flush']
+    elif mutation == 'mode': context['mode'] = 'Invented Mode'
+    else: context['tank_name'] = 'Unknown Tank'
+    config, status = g.standalone_spacer_input(inputs, context, g.catalog())
+    assert config is None and status['status'] == 'INPUT_REJECTED'
+
+
+def test_r2c_zero_receipt_frozen_configuration_and_draft_identity(r2c_spacer_control, monkeypatch):
+    inputs, draft = spacer_inputs(r2c_spacer_control)
+    s = g.PrivateSession(); p = s.store('synthetic.docx', r2c_spacer_control['bytes'])
+    revision = g.submission_revision(p.read_bytes(), 'synthetic.docx', inputs, draft); s.invalidate(revision)
+    result = s.check(p, inputs, revision=revision, draft=draft); receipt = result['receipt']
+    assert receipt['standalone_spacer_admission']['status'] == 'SOURCE_ADMITTED'
+    assert receipt['standalone_spacer_admission']['operator_sha256'] == g.digest(inputs['fluids'])
+    assert receipt['inputs_snapshot']['fluids']['standalone_spacer']['dead_vol'] == 0.0
+    assert receipt['widget_snapshot'] == draft and result['word_modified'] is False
+    assert all(f['result'] == 'MATCH' for f in result['results']['C05']['findings'])
+    inputs['fluids']['standalone_spacer']['dead_vol'] = 5.0
+    assert receipt['inputs_snapshot']['fluids']['standalone_spacer']['dead_vol'] == 0.0
+    assert s.invalidate(g.submission_revision(p.read_bytes(), 'synthetic.docx', inputs, draft)) and s.current() is None
+    assert s.volume_preview is s.dv_preview is s.copy_output is None
+    def no_source(*a, **k): pytest.fail('Mismatching draft reached source')
+    import c05_fluids
+    monkeypatch.setattr(c05_fluids, 'request', no_source)
+    with pytest.raises(ValueError, match='committed independent draft'): s.check(p, inputs, draft=draft)
+
+
+@pytest.mark.parametrize('bad', ['density', 'stock'])
+def test_r2c_original_source_rejects_invalid_configured_values(r2c_spacer_control, bad):
+    inputs, draft = spacer_inputs(r2c_spacer_control)
+    if bad == 'density': inputs['fluids']['fluids']['Spacer']['density'] = draft['fluid_inputs']['Spacer']['density'] = 1.0
+    else: inputs['fluids']['standalone_spacer']['barite_available_lb'] = draft['standalone_spacer']['barite_available_lb'] = 1.0
+    s = g.PrivateSession(); p = s.store('synthetic.docx', r2c_spacer_control['bytes']); result = s.check(p, inputs, draft=draft)
+    assert result['receipt']['standalone_spacer_admission']['status'] == 'INPUT_REJECTED'
+    assert result['run_outcome'] == 'INPUT_REJECTED' and 'C05' not in result['completed_adapters']
+    assert 'No discrepancies detected' not in result['message'] and p.read_bytes() == r2c_spacer_control['bytes']
+
+
+def test_r2c_ui_configured_inputs_are_optional_typed_and_stale(r2c_spacer_control, monkeypatch):
+    from io import BytesIO
+    import streamlit as st
+    from streamlit import config
+    from streamlit.testing.v1 import AppTest
+    upload = BytesIO(r2c_spacer_control['bytes']); upload.name = 'synthetic-Spacer.docx'
+    monkeypatch.setattr(st, 'file_uploader', lambda *a, **k:upload)
+    old = config.get_option('browser.gatherUsageStats'); config.set_option('browser.gatherUsageStats',False)
+    try:
+        app = AppTest.from_file(str(g.ROOT/'checker_ui.py'), default_timeout=60).run()
+        app.selectbox(key='job').select('CSG 20"').run(); app.selectbox(key='mud').select('WBM').run()
+        app.multiselect(key='active:CSG 20":WBM').select('Spacer').run(); prefix = 'CSG 20":Spacer:'
+        assert not app.checkbox(key=prefix+'standalone:selected').value
+        app.number_input(key=prefix+'volume').set_value(20.0); app.number_input(key=prefix+'density').set_value(110.0)
+        app.text_input(key=prefix+'rate').set_value('2').run(); app.checkbox(key=prefix+'standalone:selected').check().run()
+        assert app.selectbox(key=prefix+'standalone:mode').value is None and app.number_input(key=prefix+'standalone:dead').value is None
+        app.button[0].click().run(); assert not app.exception
+        assert app.session_state['_private'].result['receipt']['standalone_spacer_admission']['status'] == 'INPUT_INCOMPLETE'
+        app.selectbox(key=prefix+'standalone:mode').select('Limestone + Barite').run()
+        app.number_input(key=prefix+'standalone:dead').set_value(0.0); app.selectbox(key=prefix+'standalone:tank').select('Mud Reserve Tanks').run()
+        assert app.number_input(key=prefix+'standalone:limestone').value is None and app.number_input(key=prefix+'standalone:barite').value is None
+        app.number_input(key=prefix+'standalone:limestone').set_value(1500.0); app.number_input(key=prefix+'standalone:barite').set_value(10000.0).run()
+        app.button[0].click().run(); assert not app.exception
+        s = app.session_state['_private']; result = s.current(); cfg = result['receipt']['inputs_snapshot']['fluids']['standalone_spacer']
+        assert cfg == {'mode':'Limestone + Barite','dead_vol':0.0,'tank_name':'Mud Reserve Tanks','limestone_available_lb':1500.0,'barite_available_lb':10000.0}
+        assert all(type(cfg[k]) is float for k in ('dead_vol','limestone_available_lb','barite_available_lb'))
+        assert result['receipt']['standalone_spacer_admission']['status'] == 'SOURCE_ADMITTED'
+        assert any(f['field']=='spacer.dose' and f['result']=='MATCH' for f in result['results']['C05']['findings'])
+        app.number_input(key=prefix+'standalone:dead').set_value(5.0).run()
+        assert s.result is None and s.volume_preview is s.dv_preview is s.copy_output is None
+        assert not any(t.key=='engineer_message' for t in app.text_area)
+        assert app.number_input(key=prefix+'volume').value == 20.0 and app.number_input(key=prefix+'density').value == 110.0
+    finally: config.set_option('browser.gatherUsageStats',old)
+
+
+@pytest.mark.parametrize('cross', ['configuration', 'numeric-type', 'volume', 'job', 'active-role'])
+def test_r2c_forged_draft_binding_never_dispatches(r2c_spacer_control, monkeypatch, cross):
+    inputs, draft = spacer_inputs(r2c_spacer_control)
+    if cross == 'configuration': inputs['fluids']['standalone_spacer']['dead_vol'] = 5.0
+    elif cross == 'numeric-type': inputs['fluids']['standalone_spacer']['dead_vol'] = 0  # differs from actual float 0.0
+    elif cross == 'volume': inputs['fluids']['fluids']['Spacer']['volume'] = 21.0
+    elif cross == 'job': inputs['fluids']['job_type'] = 'CSG 24"'
+    else: inputs['active_fluids'] = ['Spacer', 'Main']
+    s = g.PrivateSession(); p = s.store('synthetic.docx', r2c_spacer_control['bytes'])
+    import c05_fluids
+    def no_source(*a, **k): pytest.fail('Forged UI binding reached source')
+    monkeypatch.setattr(c05_fluids, 'request', no_source)
+    with pytest.raises(ValueError, match='C05'): s.check(p, inputs, draft=draft)
+    assert s.current() is None and s.copy_output is None
+
+
+def test_r2c_source_receipt_cannot_cross_sessions(r2c_spacer_control):
+    inputs, draft = spacer_inputs(r2c_spacer_control); s = g.PrivateSession()
+    p = s.store('synthetic.docx', r2c_spacer_control['bytes']); r = s.check(p, inputs, draft=draft)
+    other = g.PrivateSession(); other.document = p; other.result = deepcopy(r); other.revision = s.revision
+    with pytest.raises(ValueError): other.current()
+    assert other.result is None and other.copy_output is None and s.current() is r

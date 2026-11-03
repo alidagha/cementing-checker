@@ -37,6 +37,7 @@ def main():
         st.text('Source pumping order: '+', '.join(active))
         st.caption('Enter independent facts only. Nothing is populated from Word. Optional fluids are never mandatory.')
     fluid_inputs = {}; slurries = {}; completion = True; neat_confirmations={}
+    spacer_context = {'selected': False}; spacer_config = None
     for fluid in active:
         with st.expander(fluid+' — independent fluid / formulation inputs', expanded=True):
             prefix = f'{job}:{fluid}:'
@@ -46,6 +47,20 @@ def main():
             material = st.text_input(fluid+' material name (optional independent name)', key=prefix+'material')
             fluid_inputs[fluid] = {'volume': volume, 'density': density, 'pump_rate': rate}
             if material: fluid_inputs[fluid]['material_name'] = material
+            if fluid == 'Spacer':
+                spacer_context = {'selected': st.checkbox('Check configured Standalone Spacer', key=prefix+'standalone:selected')}
+                if spacer_context['selected']:
+                    options = catalog['standalone_spacer']
+                    spacer_context.update(
+                        mode=st.selectbox('Spacer weighting-agent mode', options['modes'], index=None, key=prefix+'standalone:mode'),
+                        dead_vol=st.number_input('Spacer independent Dead Volume (bbl)', value=None, min_value=0.0, key=prefix+'standalone:dead'),
+                        tank_name=st.selectbox('Spacer mixing tank', options['tanks'][job], index=None, key=prefix+'standalone:tank'))
+                    if spacer_context['mode'] == 'Limestone + Barite':
+                        spacer_context['limestone_available_lb'] = st.number_input('Spacer available Limestone inventory (lb)', value=None, min_value=0.0, key=prefix+'standalone:limestone')
+                        spacer_context['barite_available_lb'] = st.number_input('Spacer available Barite inventory (lb)', value=None, min_value=0.0, key=prefix+'standalone:barite')
+                    spacer_config, spacer_status = report.standalone_spacer_input(
+                        {'job_type': job, 'mud_type': mud, 'active_fluids': active}, spacer_context, catalog)
+                    st.text('Configured Standalone Spacer: '+spacer_status['status'])
             if fluid in catalog['cement_roles']:
                 base = st.selectbox(fluid+' base cement', catalog['cement_names'], index=None, key=prefix+'base')
                 sg = st.number_input(fluid+' independently supplied cement SG', value=None, key=prefix+'sg')
@@ -64,6 +79,8 @@ def main():
     cop = {'job_type': job, 'active_fluids': active, 'slurries': slurries} if job and active and slurries and completion else None
     fop = {'job_type': job, 'mud_type': mud, 'fluids': fluid_inputs} if job and active and all(
         f['volume'] is not None and f['density'] is not None and f['pump_rate'].strip() for f in fluid_inputs.values()) else None
+    if fop is not None and spacer_config is not None:
+        fop['standalone_spacer'] = spacer_config
     with st.expander('Independent hardware (C06)'):
         hardware_on = st.checkbox('Check independently entered hardware')
         hardware = []
@@ -134,7 +151,8 @@ def main():
     draft = {'job': job, 'mud': mud, 'active': active, 'fluid_inputs': fluid_inputs, 'slurries': slurries,
         'hardware_on': hardware_on, 'hardware': hardware, 'lab_on': lab_on, 'conditions': conditions,
         'measurements': measurements, 'measured_fluid': measured_fluid, 'neat_confirmations':neat_confirmations,
-        'summary_text': text, 'approval': approval, 'confirmed': confirmed, 'procedure': procedure}
+        'summary_text': text, 'approval': approval, 'confirmed': confirmed, 'procedure': procedure,
+        'standalone_spacer': spacer_context}
     raw = upload.getvalue() if upload else b''
     revision = report.submission_revision(raw,upload.name if upload else None,inputs,draft)
     if session.invalidate(revision): st.session_state.pop('engineer_message', None)
