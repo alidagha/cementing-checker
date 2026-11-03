@@ -2,11 +2,11 @@
 
 Independent First · Integration Optional · Simplicity Always.
 
-This public repository contains the independent Cementing Program Checker and its implemented-scope regression checks. It does not distribute the pinned upstream App, Word template, libraries, original fixtures or recovery archives. Publication is not production acceptance or a new license grant.
+This public repository contains the independent Cementing Program Checker, its implemented-scope regression checks, and the Owner-authorized, byte-verified engine/template bundle pinned by `upstream.lock.json`. Python libraries, original customer fixtures and recovery archives are not bundled. Publication is not production acceptance or a new license grant.
 
 C01R extracts ordered DOCX claims. C02 calls the original automatic App engine for selected numeric comparisons. C03 attributes preparation-water notes/tanks and reports inferred allowance intervals. C04 previews an explicit selected ordinary-slurry Dead Volume proposal without editing Word. Results remain `PARTIAL_FINDINGS_ONLY`; CLI exit 0 is not program approval.
 
-## External runtime prerequisite
+## Local engine and private runtime
 
 Python 3.12 and the exact externally installed versions in `requirements.txt` are required. Use an isolated virtualenv outside any App/accepted worktree:
 
@@ -18,7 +18,7 @@ python3.12 -m venv /YOUR/SCRATCH/checker-env
 . /YOUR/SCRATCH/checker-env/bin/activate
 ```
 
-The lock records observed working versions, including transitive imports. Package availability on another index/platform and a fresh pip installation are separate verification gates; no libraries are vendored. Network is needed for package acquisition and the explicitly pinned external source download. Calculations themselves are local.
+The lock records observed working versions, including transitive imports. Package availability on another index/platform and a fresh pip installation are separate verification gates; no Python libraries are vendored. Package acquisition may require network or a separately prepared wheelhouse. Provisioning, seeding and calculations require no App network access or App checkout.
 
 From the repository checkout, using that environment's Python:
 
@@ -34,9 +34,9 @@ python -B tools/ci.py run --shard C
 python -B tools/ci.py certify
 ```
 
-The fresh runtime must be outside this checkout and all Git worktrees. Provision downloads `alidagha/cementing-test` at the exact `upstream.lock.json` commit and verifies all 143 SHA256/Git-blob identities, including the template. Availability is not guaranteed, and download instructions are not redistribution permission. Only the private runtime contains `snapshot/` and generated source-rendered synthetic fixtures. It is not an offline/self-contained public distribution.
+The fresh runtime must be outside this checkout and all Git worktrees. Provision reads `checker_engine/60dffefb8c941ad90cb7caba0992126a35803717.tar.gz` locally and verifies all 143 SHA256/Git-blob identities against the unchanged lock, including the template. There is no remote fallback. The versioned archive retains every locked upstream resource; its upstream tests are not Checker discovery inputs. Only the private runtime contains the expanded `snapshot/` and generated synthetic fixtures; the archive is not duplicated there. See [local engine packaging](docs/architecture/local-engine-bundle.md). R1 provides standalone source availability, not a complete offline Python distribution, Golden UAT, secure-delivery certification or final release.
 
-`--seed` generates new structural equivalents needed by unchanged tests. Files historically named `red-baseline.json` or `c03-baseline.json` are fresh runtime controls here, never evidence of a historical RED. Accepted historical files remain private and unchanged. No sanitized replacement or byte identity of original DOCX is asserted; no DOCX is proposed for Git.
+`--seed` generates new structural equivalents needed by unchanged tests. Files historically named `red-baseline.json` or `c03-baseline.json` are fresh runtime controls here, never evidence of a historical RED. Accepted historical files remain private and unchanged. No sanitized replacement or byte identity of original customer DOCX is asserted. The only packaged DOCX is the exact locked template inside the verified source archive.
 
 ## Selected-DV example
 

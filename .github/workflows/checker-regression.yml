@@ -25,7 +25,7 @@ jobs:
           echo "CHECKER_CHECKOUT_PROOF=$RUNNER_TEMP/checker-checkout.json" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: '3.12.15'
       - name: Verify event, schedule and accepted identities without provisioning
         run: python -B tools/ci.py checkout
   focused:
@@ -56,7 +56,7 @@ jobs:
           echo "PIP_CACHE_DIR=$RUNNER_TEMP/checker-pip" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: '3.12.15'
       - run: python -B tools/ci.py checkout
       - run: python -m pip install -r requirements.txt
       - name: Provision pinned external source
@@ -179,7 +179,7 @@ jobs:
           echo "CHECKER_CHECKOUT_PROOF=$RUNNER_TEMP/checker-checkout.json" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: '3.12.15'
       - run: python -B tools/ci.py checkout
       - name: Fail-closed event and dependency gate
         run: python -B tools/ci.py gate
