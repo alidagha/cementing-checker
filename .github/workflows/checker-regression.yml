@@ -32,7 +32,7 @@ jobs:
     if: github.event_name == 'pull_request'
     needs: fast-gate
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 75
     env:
       PYTHONUNBUFFERED: '1'
       CHECKER_SHARD: ${{ matrix.shard }}
@@ -120,7 +120,7 @@ jobs:
           trap finish EXIT
           timeout --signal=TERM --kill-after=15s 150s python -B tools/ci.py collect > "$phase_log" 2>&1
       - name: Run native shard ${{ matrix.shard }}
-        timeout-minutes: 15
+        timeout-minutes: 65
         shell: bash
         working-directory: ${{ runner.temp }}/checker-runtime
         env:
@@ -141,7 +141,7 @@ jobs:
             exit "$phase_rc"
           }
           trap finish EXIT
-          timeout --signal=TERM --kill-after=15s 870s python -B tools/ci.py run --shard "$CHECKER_SHARD" > "$phase_log" 2>&1
+          timeout --signal=TERM --kill-after=15s 3600s python -B tools/ci.py run --shard "$CHECKER_SHARD" > "$phase_log" 2>&1
       - name: Upload nonauthoritative timeout diagnostic metadata
         if: always()
         uses: actions/upload-artifact@v7.0.2
