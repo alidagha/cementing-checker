@@ -771,3 +771,86 @@ def test_ui_c09_incomplete_draft_invalidates_without_blocking_cement(ui_boundary
     revision = session.revision; app.run()
     assert app.number_input(key=f'c09:{job}:td').value == 0 and session.revision == revision
     assert session.current() is None and not app.exception
+
+
+@pytest.fixture(scope='session')
+def r2b_catalog():
+    return g.catalog()
+
+
+@pytest.mark.parametrize('job', ['CSG 20"', 'LNR 7"', 'CMT PLUG WITH CT', 'CMT SQUEEZE'])
+@pytest.mark.parametrize('mud', ['WBM', 'OBM'])
+def test_r2b_catalog_conditional_roles_preserve_source_order(r2b_catalog, job, mud):
+    """Actual source projection, not a new mandatory-fluid or CT-stage rule."""
+    eligible = r2b_catalog['eligible'][job][mud]
+    assert eligible == [f for f in r2b_catalog['order'] if f in eligible]
+    assert ('Diesel' in eligible) == (mud == 'OBM')
+    roles = [f for f in eligible if f in r2b_catalog['cement_roles']]
+    assert roles == (['Main'] if job == 'CMT PLUG WITH CT' else ['Scavenger', 'Main', 'Lead', 'Lead #1', 'Lead #2', 'Tail'])
+    request = {'job_type': job, 'mud_type': mud, 'active_fluids': ['Main'], 'cement': None}
+    assert g.cement_admission(request, r2b_catalog)['status'] == 'INPUT_INCOMPLETE'
+    request['active_fluids'] = ['Displacement Fluid']
+    assert g.cement_admission(request, r2b_catalog)['status'] == 'NOT_APPLICABLE'
+
+
+@pytest.mark.parametrize('mutation', ['CT-lead', 'WBM-diesel', 'duplicate', 'wrong-role', 'bool', 'string', 'nonfinite'])
+def test_r2b_ineligible_or_untyped_submission_cannot_be_admitted(controls, r2b_catalog, mutation):
+    request = submitted(controls['op'])
+    if mutation == 'CT-lead':
+        request['job_type'] = 'CMT PLUG WITH CT'; request['active_fluids'] = ['Main', 'Lead']
+    elif mutation == 'WBM-diesel': request['active_fluids'] = ['Diesel', 'Main']
+    elif mutation == 'duplicate': request['active_fluids'] = ['Main', 'Main']
+    elif mutation == 'wrong-role': request['cement']['slurries']['Lead'] = request['cement']['slurries'].pop('Main')
+    else:
+        request['cement']['slurries']['Main']['client_volume_bbl'] = {'bool': True, 'string': '50', 'nonfinite': float('inf')}[mutation]
+    assert g.cement_admission(request, r2b_catalog)['status'] == 'INPUT_REJECTED'
+
+
+@pytest.mark.parametrize('job', ['CSG 20"', 'LNR 7"', 'CMT PLUG WITH CT', 'CMT SQUEEZE'])
+def test_r2b_typed_source_receipt_is_not_job_or_Golden_certification(controls, job):
+    request = submitted(controls['op']); request['job_type'] = request['cement']['job_type'] = job
+    request['cement']['slurries']['Main']['client_volume_bbl'] = 50.0
+    draft = {'slurries': deepcopy(request['cement']['slurries']), 'neat_confirmations': {'Main': True}}
+    session = g.PrivateSession(); path = session.store('synthetic-control.docx', controls['bad'])
+    original = path.read_bytes(); revision = g.submission_revision(original, 'synthetic-control.docx', request, draft)
+    session.invalidate(revision); result = session.check(path, request, revision=revision, draft=draft)
+    receipt = result['receipt']; c02 = result['results']['C03']['c02']
+    assert receipt['cement_admission']['status'] == 'SOURCE_ADMITTED'
+    assert receipt['inputs_snapshot'] == request and receipt['widget_snapshot'] == draft
+    assert type(receipt['inputs_snapshot']['cement']['slurries']['Main']['client_volume_bbl']) is float
+    assert receipt['submission_sha256'] == g.digest(request)
+    assert receipt['cement_operator_sha256'] == c02['reference']['operator_input_sha256'] == g.digest(request['cement'])
+    assert c02['reference']['job_applicability'] == 'NOT_VERIFIED'
+    sacks = receipt['sacks_findings']; assert len(sacks) == 1
+    assert sacks[0]['mapping_state'] == 'IDENTIFIED' and sacks[0]['locator'] and sacks[0]['slurry'] == 'Main'
+    assert sacks[0]['raw_reported_text'] == '999.9 sks' and sacks[0]['result'] == 'DISCREPANCY'
+    assert path.read_bytes() == original and result['document_sha256'] == sha256(original).hexdigest()
+    assert result['docx_written'] is False and result['word_modified'] is False
+    if job == 'CMT PLUG WITH CT':
+        assert all(f['status'] == 'NOT_VERIFIABLE' for f in result['results']['C03']['water_findings'])
+    # Frozen source identity and role association survive caller edits; changed drafts invalidate all optional state.
+    request['cement']['slurries']['Main']['client_volume_bbl'] = 51.0
+    assert receipt['inputs_snapshot']['cement']['slurries']['Main']['client_volume_bbl'] == 50.0
+    assert session.invalidate(g.submission_revision(original, 'synthetic-control.docx', request, draft))
+    assert session.current() is None and session.volume_preview is None and session.dv_preview is None
+    assert session.copy_proposal is None and session.copy_output is None
+
+
+def test_r2b_unprinted_active_Lead_never_borrows_Main_claims(controls):
+    request = submitted(controls['op']); request['active_fluids'] = ['Main', 'Lead']
+    request['cement']['active_fluids'] = ['Main', 'Lead']
+    request['cement']['slurries']['Lead'] = {**deepcopy(request['cement']['slurries']['Main']), 'client_volume_bbl': 30.0}
+    session = g.PrivateSession(); path = session.store('only-Main-printed.docx', controls['bad'])
+    result = session.check(path, request); c03 = result['results']['C03']; c02 = c03['c02']
+    assert result['receipt']['cement_admission']['roles'] == ['Main', 'Lead']
+    assert result['receipt']['inputs_snapshot']['cement']['slurries']['Lead']['client_volume_bbl'] == 30.0
+    assert set(c02['reference']['slurries']) == {'Main', 'Lead'}
+    assert c02['reference']['slurries']['Main']['calc']['field_sacks'] != c02['reference']['slurries']['Lead']['calc']['field_sacks']
+    assert not any(r.get('association') == 'Lead' for r in result['original_records'])
+    assert not any(f.get('slurry') == 'Lead' for f in c02['findings'])  # no fictional Word claim/locator
+    missing = next(f for f in c03['water_findings'] if f['slurry'] == 'Lead')
+    assert missing['status'] == 'NOT_VERIFIABLE' and missing['reason'] and missing.get('locator') is None
+    assert c02['reference']['job_applicability'] == 'NOT_VERIFIED'
+    assert path.read_bytes() == controls['bad'] and result['word_modified'] is False
+    wrong = deepcopy(request); del wrong['cement']['slurries']['Lead']
+    assert g.cement_admission(wrong, session.source_catalog)['status'] == 'INPUT_REJECTED'
