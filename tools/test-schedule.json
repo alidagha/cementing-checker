@@ -16,7 +16,8 @@
     "tests/test_g03_admission.py",
     "tests/test_g06a.py",
     "tests/test_g08a5_dv_preview.py",
-    "tests/test_g08a6_c10_ui.py"
+    "tests/test_g08a6_c10_ui.py",
+    "tests/test_g08a7_delivery.py"
   ],
   "C": [
     "c03/test_c03.py",
