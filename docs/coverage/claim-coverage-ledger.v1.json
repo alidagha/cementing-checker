@@ -6464,7 +6464,7 @@
         "G06B.explicit_DV"
       ],
       "remaining_gap": "Preview only; corrected copy/recheck NOT RUN",
-      "current_reconciliation": "Historic component scope only; authentic full acceptance remains unrun",
+      "current_reconciliation": "Historical gap retained: G06-B is a non-mutating preview; C10 selected ordinary Yield/Sacks copying does not implement a Dead Volume correction.",
       "capability_ids": []
     },
     {
@@ -7071,7 +7071,7 @@
         "TPL.0244"
       ],
       "remaining_gap": "Source-rendered controls; no authentic production export",
-      "current_reconciliation": "Historic component scope only; authentic full acceptance remains unrun",
+      "current_reconciliation": "R2-F component evidence preserves whole ordered Procedure/NOTE findings and blocks sequence completion on any unproved individual claim. C08/C09 subparagraph atomization lacks a proved source-expression-to-physical-span map; authentic acceptance remains NOT_RUN.",
       "capability_ids": []
     },
     {
@@ -7390,7 +7390,7 @@
         "C02.field_additive"
       ],
       "remaining_gap": "Corrections deliberately out of G03",
-      "current_reconciliation": "X16 selected ordinary Yield/Sacks copy exists; broad correction incomplete",
+      "current_reconciliation": "Historical G03 scope retained. Current C10 supports individually selected ordinary Yield/Sacks copies only, with full source recheck and R0 session-bound POST delivery; this is component evidence, not authentic full correction acceptance.",
       "capability_ids": [
         "C10_SELECTED_YIELD_SACKS",
         "R0_SECURE_DELIVERY"
@@ -7419,7 +7419,7 @@
         "CT.CT_export_readiness"
       ],
       "remaining_gap": "Preview only; corrected-copy recheck absent",
-      "current_reconciliation": "Historic component scope only; authentic full acceptance remains unrun",
+      "current_reconciliation": "Historical preview gap retained. R2-B through R2-F component tests cover committed-input receipt invalidation; selective C10 copy/recheck is separate from a full-program correction cascade. Authentic acceptance remains NOT_RUN.",
       "capability_ids": []
     },
     {
@@ -7444,7 +7444,7 @@
         "CT.CT_export_readiness"
       ],
       "remaining_gap": "CT setting depth components only; complete stage/gate inputs unavailable",
-      "current_reconciliation": "Historic component scope only; authentic full acceptance remains unrun",
+      "current_reconciliation": "R2-F factorized source job/role/stage matrix distinguishes original CT stage authority from current C09 admission. CT cannot borrow a casing reference; unsupported physical narrative association receives no claim credit.",
       "capability_ids": []
     },
     {
@@ -7457,7 +7457,7 @@
         "C09.procedure"
       ],
       "remaining_gap": "One-page/copy-message/UI acceptance not implemented",
-      "current_reconciliation": "X19 one-page findings/message and session-authorized DOCX exist; full audit delivery incomplete",
+      "current_reconciliation": "Historical G03 snapshot retained. Current G07 one-page findings and conservative engineer message, C10 selected copy and R0 session-bound delivery/revocation have component evidence. Full audit delivery and authentic end-to-end acceptance remain NOT_RUN.",
       "capability_ids": [
         "C10_SELECTED_YIELD_SACKS",
         "R0_SECURE_DELIVERY",

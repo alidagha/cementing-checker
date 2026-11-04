@@ -46,11 +46,20 @@ def validate(d, check_files=False):
     cells = d['job_cross_case_matrix']
     pairs = [(c['job_id'], c['case_id']) for c in cells]; unique(pairs)
     assert set(pairs) == {(j, x) for j in JIDS for x in XIDS}
+    families = {x['case_id']: set(x['claim_ids']) for x in d['cross_cases']}
     for c in cells:
         assert c['applicability'] in ('APPLICABLE', 'EXCLUDED', 'UNKNOWN_WITH_REASON')
         assert c['reason'] and c['owner'] and c['next_proof']
         assert c['golden_status'] == 'NOT_RUN' and c['verified_claim_credit'] == 0
         assert set(c['claim_ids']) <= ids
+        # Applicability inventory retains its own family, never another case's proof.
+        assert set(c['claim_ids']) == families[c['case_id']]
+        if c['applicability'] == 'UNKNOWN_WITH_REASON':
+            assert c['evidence_maturity'] == 'BLOCKED'
+        if c['applicability'] == 'EXCLUDED':
+            assert c['evidence_maturity'] == 'NOT_RUN'
+        if c['case_id'] == 'X20':
+            assert c['applicability'] == 'EXCLUDED'
     for c in cs:
         assert c['claim_evaluation'] == 'NOT_RUN' and c['golden_status'] == 'NOT_RUN'
         assert c['verified_claim_credit'] == 0 and c['word']['instance_physical_proof'] is False
@@ -59,6 +68,10 @@ def validate(d, check_files=False):
         assert c['cross_cases'] and set(c['cross_cases']) <= set(XIDS)
         assert set(c['dependencies']) <= ids and c['claim_id'] not in c['dependencies']
         assert c['evidence_maturity'] in ('COMPONENT_VERIFIED', 'PARTIAL', 'BLOCKED', 'NOT_RUN')
+        if c['source'] and c['checker']:
+            assert c['source']['origin'] == 'pinned_source'
+            assert c['checker']['origin'] == 'checker'
+            assert c['source']['field'] == c['checker']['field']
         if c['evidence_maturity'] == 'COMPONENT_VERIFIED':
             assert c['source'] and c['checker'] and c['component_tests']
             assert c['kind'] == 'SEMANTIC_PATTERN'
@@ -132,3 +145,38 @@ def test_inventory_rejects_false_evidence(mutation):
     elif mutation == 'physical': d['claims'][0]['word']['instance_physical_proof'] = True
     elif mutation == 'stale_count': d['accounting']['patterns'] += 1
     with pytest.raises(AssertionError): validate(d)
+
+
+@pytest.mark.parametrize('mutation', ['cross_case_borrowing', 'omitted_family', 'unknown_credit', 'excluded_credit', 'exclusion_reclassified'])
+def test_r2g_matrix_cannot_borrow_or_promote_unproved_evidence(mutation):
+    d = copy.deepcopy(ledger())
+    unknown = next(c for c in d['job_cross_case_matrix'] if c['applicability'] == 'UNKNOWN_WITH_REASON')
+    excluded = next(c for c in d['job_cross_case_matrix'] if c['case_id'] == 'X20')
+    if mutation == 'cross_case_borrowing':
+        unknown['claim_ids'] = next(x['claim_ids'] for x in d['cross_cases'] if x['case_id'] != unknown['case_id'] and set(x['claim_ids']) != set(unknown['claim_ids']))
+    elif mutation == 'omitted_family':
+        unknown['claim_ids'] = []
+    elif mutation == 'unknown_credit':
+        unknown['evidence_maturity'] = 'COMPONENT_VERIFIED'
+    elif mutation == 'excluded_credit':
+        excluded['evidence_maturity'] = 'COMPONENT_VERIFIED'
+    elif mutation == 'exclusion_reclassified':
+        excluded['applicability'] = 'APPLICABLE'
+    with pytest.raises(AssertionError):
+        validate(d)
+
+
+@pytest.mark.parametrize('mutation', ['source_hash', 'checker_line', 'crossed_job', 'crossed_source_field'])
+def test_r2g_rejects_obsolete_or_crossed_bindings(mutation):
+    d = copy.deepcopy(ledger())
+    claim = d['claims'][0]
+    if mutation == 'source_hash':
+        claim['source']['sha256'] = '0' * 64
+    elif mutation == 'checker_line':
+        claim['checker']['line'] += 1
+    elif mutation == 'crossed_job':
+        d['job_cross_case_matrix'][0]['job_id'] = 'J02'
+    elif mutation == 'crossed_source_field':
+        claim['source']['field'] = 'sacks'
+    with pytest.raises(AssertionError):
+        validate(d, check_files=True)
