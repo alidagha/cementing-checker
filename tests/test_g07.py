@@ -1316,3 +1316,39 @@ def test_r2e_ui_optional_profile_and_placement_are_typed(r2e_well_control,monkey
         app.number_input(key=prefix+'td').set_value(1001.0).run();assert app.session_state['_private'].result is None
         assert app.session_state['_private'].document.read_bytes()==raw
     finally:config.set_option('browser.gatherUsageStats',previous)
+
+
+@pytest.mark.parametrize('job',['CMT PLUG WITH CT','CMT PLUG','CMT SQUEEZE','LNR 7"','TIE BACK LNR 7"'])
+def test_r2f_source_jobs_do_not_borrow_ordinary_C09_intake(procedure_control,procedure_catalog,job):
+    _,inputs,_=procedure_control;inputs=deepcopy(inputs);context=procedure_context(inputs['procedure'])
+    inputs['job_type']=job
+    op,status=g.procedure_input(inputs,context,procedure_catalog)
+    assert op is None and 'NOT_VERIFIABLE' in status
+    assert job in procedure_catalog['jobs'] and job not in procedure_catalog['procedure']['jobs']
+
+
+@pytest.mark.parametrize('role',['Spacer','Pre Flush','Scavenger','Diesel','Spacer Ahead','Spacer Behind'])
+def test_r2f_special_role_intake_requires_its_own_complete_NOTE_context(procedure_control,procedure_catalog,role):
+    _,inputs,_=procedure_control;inputs=deepcopy(inputs);context=procedure_context(inputs['procedure']);inputs['active_fluids'].append(role)
+    op,status=g.procedure_input(inputs,context,procedure_catalog)
+    assert op is None and 'NOT_VERIFIABLE' in status
+
+
+def test_r2f_unavailable_C09_receipt_has_no_completed_stage_or_copy_claim(procedure_control,monkeypatch):
+    import c09_procedure
+    from subprocess import TimeoutExpired
+    original,inputs,_=procedure_control
+    def unavailable(*args):raise TimeoutExpired('/private/secret-worker',90,stderr='PRIVATE-NARRATIVE-PAYLOAD')
+    monkeypatch.setattr(c09_procedure,'compare_document',unavailable)
+    s=g.PrivateSession();path=s.store('synthetic.docx',original);r=s.check(path,deepcopy(inputs))
+    assert r['results']['C09']['status']=='NOT_VERIFIABLE' and 'C09' not in r['completed_adapters']
+    assert {'C02','C03','C05','C06'}<=set(r['completed_adapters']) and r['run_outcome']=='PARTIAL_FINDINGS_ONLY'
+    a=r['receipt']['C09_stage_availability'];assert a==r['results']['C09']['availability']
+    assert all(x['state']=='SOURCE_BLOCKED' and not x['sequence_complete'] for x in a['stages'])
+    assert a['verified_production_claim_instances']==0 and a['authentic_golden_status']=='NOT_RUN'
+    assert 'PRIVATE-NARRATIVE-PAYLOAD' not in json.dumps(r) and '/private/secret-worker' not in json.dumps(r)
+    with pytest.raises(ValueError):s.create_selected_copy(['C09:procedure.sequence'],True)
+    other=g.PrivateSession();other.result=r;other.document=path
+    with pytest.raises(ValueError):other.current()
+    s.invalidate('changed-independent-context');assert s.current() is s.copy_output is s.volume_preview is s.dv_preview is None
+    assert path.read_bytes()==original
