@@ -83,14 +83,53 @@ def main():
         fop['standalone_spacer'] = spacer_config
     with st.expander('Independent hardware (C06)'):
         hardware_on = st.checkbox('Check independently entered hardware')
-        hardware = []
+        hardware = []; well_context={'geothermal_selected':False,'placement_selected':False,'fluids_selected':False}; hop=None
         if hardware_on:
             hardware = report.clean_rows(st.data_editor(pd.DataFrame(columns=catalog['hardware_fields']).astype({
                 k: 'float64' for k in ('ID (in)', 'Joint (m)', 'Weight (ppf)', 'Collapse (psi)', 'Burst (psi)')}),
+                column_config={'Description':st.column_config.SelectboxColumn('Description',options=catalog['well']['descriptions_by_job'].get(job,catalog['hardware_descriptions']))},
                 num_rows='dynamic', hide_index=True, key=f'hardware:{job}').to_dict('records'))
             st.text('Source descriptions: '+', '.join(catalog['hardware_descriptions']))
-            st.caption('MD (m) uses the original scalar/range syntax. Placement/excess/geothermal contexts are NOT_VERIFIABLE here.')
-    hop = {'job_type': job, 'hardware': hardware} if job and hardware and all('Description' in r and 'MD (m)' in r for r in hardware) else None
+            st.caption('MD (m) retains original scalar/range syntax. Optional blanks are not measurements; Open Hole masks and CT setting-depth rules remain source-owned.')
+            choices=None
+            try:choices=session.current_hardware_choices(job,hardware)
+            except (ValueError,RuntimeError,OSError,KeyError,TypeError):st.error('NOT_VERIFIABLE: Hardware choice receipt rejected; inspect current independent rows again.')
+            if st.button('Inspect source Hardware target and host choices',disabled=not(job and hardware and all('Description' in r and 'MD (m)' in r for r in hardware))):
+                try:
+                    with st.spinner('Inspecting independent source Hardware choices'):choices=session.inspect_hardware_choices(job,hardware)
+                except (ValueError,RuntimeError,OSError,KeyError,TypeError,TimeoutExpired):st.error('NOT_VERIFIABLE: source Hardware choices unavailable; no target or host is inferred.')
+            options=catalog['well'];prefix=f'c06:{job}:'
+            well_context['well_geometry']={'version':options['geometry_version'],
+                'type':st.selectbox('C06 independent well type',options['types'],index=None,key=prefix+'type'),
+                'td_m':st.number_input('C06 independent Vertical total depth (m)',value=None,key=prefix+'td')}
+            well_context['geothermal_selected']=st.checkbox('C06 check independent Vertical geothermal / temperature',key=prefix+'geothermal')
+            if well_context['geothermal_selected']:
+                source=st.selectbox('C06 independent temperature source',options['temperature_sources'],index=None,key=prefix+'temp-source')
+                well_context['geothermal_config']={'version':options['geothermal_version'],'source':source,
+                    'surface_temp':st.number_input('C06 independent surface temperature (degF)',value=None,key=prefix+'surface'),
+                    'value':st.number_input('C06 independent '+(source or 'temperature source value')+(' (degF/100ft)' if source=='Temperature Gradient' else ' (degF)'),value=None,key=prefix+'temp-value')}
+            kind=options['chart_jobs'].get(job)
+            well_context['placement_selected']=st.checkbox('C06 check optional source placement / capacity (informational)',key=prefix+'placement',disabled=kind is None)
+            if kind is None:st.caption('Source chart geometry is NOT_VERIFIABLE for this job; no casing substitution or Survey input.')
+            if well_context['placement_selected']:
+                supplied=choices['source']['reference']['source_hardware_choices'] if choices else {}
+                manual=catalog['procedure']['manual_target'];targets=[manual]+[k for k,v in supplied.items() if v['description'] in options['target_descriptions'][job]]
+                target=st.selectbox('C06 placement target',targets,index=None,format_func=lambda k:'Independent manual target depth' if k==manual else supplied[k]['label'],key=prefix+'target')
+                config={'job_type':job,'target_row':target,'chart_excess_mode':st.selectbox('C06 chart excess mode',catalog['procedure']['excess_modes'],index=None,key=prefix+'excess')}
+                if target==manual:config['manual_depth_m']=st.number_input('C06 independent manual target depth (m)',value=None,key=prefix+'target-md')
+                if config['chart_excess_mode']=='apply':
+                    for field,label in catalog['procedure']['excess_fields']:
+                        value=st.number_input('C06 '+label,value=None,key=prefix+field)
+                        if value is not None:config[field]=value
+                if kind=='tieback':
+                    config['host_row']=st.selectbox('C06 explicit source Tie Back host',list(supplied),index=None,format_func=lambda k:supplied[k]['label'],key=prefix+'host')
+                    lap=st.number_input('C06 independent Tie Back liner lap (m; optional)',value=None,key=prefix+'lap')
+                    if lap is not None:config['tie_back_liner_lap_m']=lap
+                well_context['placement_config']=config
+                well_context['fluids_selected']=st.checkbox('C06 use current independent C05 fluid volumes for placement',key=prefix+'fluids')
+            hop,well_status=report.well_input({'job_type':job,'mud_type':mud,'active_fluids':active,'fluids':fop},hardware,well_context,catalog,choices)
+            st.text('C06 independent context: '+json.dumps(well_status,sort_keys=True))
+            st.caption('Vertical only; Survey excluded. Source validates applicable excess/host/geometry. Capacity and placement are INFORMATIONAL; Client Requested Volume is never replaced by capacity.')
     with st.expander('Independent laboratory observations (partial C07)'):
         lab_on = st.checkbox('Check partial laboratory evidence')
         conditions = {}; measurements = {}; measured_fluid = None; measured_fluids = []; lab_confirmed = False; lab_groups = {}
@@ -186,6 +225,7 @@ def main():
     # Include incomplete drafts, not just admitted operators, in stale-result invalidation.
     draft = {'job': job, 'mud': mud, 'active': active, 'fluid_inputs': fluid_inputs, 'slurries': slurries,
         'hardware_on': hardware_on, 'hardware': hardware, 'lab_on': lab_on, 'conditions': conditions,
+        'well_context':well_context,
         'measurements': measurements, 'measured_fluid': measured_fluid, 'neat_confirmations':neat_confirmations,
         'measured_fluids': measured_fluids, 'lab_confirmed': lab_confirmed, 'lab_groups': lab_groups,
         'summary_text': text, 'approval': approval, 'confirmed': confirmed, 'procedure': procedure,

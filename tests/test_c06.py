@@ -236,3 +236,45 @@ def test_scalar_column_grid_must_be_proven():
         result=compare_document(p2,operator())
         assert all(f['result']=='NOT_VERIFIABLE' for f in result['findings']
                    if f.get('fluid')=='Spacer')
+
+
+def test_r2e_hardware_above_unit_grid_cannot_be_bound(case, monkeypatch):
+    p,op,source=case;monkeypatch.setattr('c06_well.request',lambda *a,**k:source)
+    document=Document(p);table=next(t for t in document.tables if t.cell(0,0).text=='Tubular and Casing Hardware')
+    row=next(r for r in table.rows if r.cells[0].text=='Casing')
+    header=next(r for r in table.rows if r.cells[0].text=='Description');header._tr.addprevious(row._tr)
+    with tempfile.TemporaryDirectory(dir=ROOT/'tmp',prefix='r2e-grid-') as folder:
+        target=Path(folder)/'moved.docx';document.save(target);result=compare_document(target,op)
+        fields=[f for f in result['findings'] if f.get('hardware')=='Casing']
+        assert fields and all(f['result']=='NOT_VERIFIABLE' for f in fields)
+
+
+@pytest.mark.parametrize('mutation',['merged','masked-open-hole','wrong-temperature-header'])
+def test_r2e_physical_masks_and_grid_remain_unverified(case,monkeypatch,mutation):
+    p,op,source=case;monkeypatch.setattr('c06_well.request',lambda *a,**k:source)
+    document=Document(p);table=next(t for t in document.tables if t.cell(0,0).text=='Tubular and Casing Hardware')
+    if mutation=='merged':
+        row=next(r for r in table.rows if r.cells[0].text=='Casing');row.cells[1].merge(row.cells[2])
+    if mutation=='masked-open-hole':
+        row=next(r for r in table.rows if r.cells[0].text=='Open Hole Size');row.cells[4].text='12.2'
+    if mutation=='wrong-temperature-header':
+        table=next(t for t in document.tables if t.cell(0,0).text=='Temperature')
+        next(r for r in table.rows if r.cells[0].text=='MD (m)').cells[0].text='MD (ft)'
+    with tempfile.TemporaryDirectory(dir=ROOT/'tmp',prefix='r2e-physical-') as folder:
+        target=Path(folder)/'mutant.docx';document.save(target);r=compare_document(target,op)
+        if mutation=='merged':selected=[f for f in r['findings'] if f.get('hardware')=='Casing']
+        elif mutation=='masked-open-hole':selected=[f for f in r['findings'] if f.get('hardware')=='Open Hole Size' and f['field']=='hardware.Joint (m)']
+        else:selected=[f for f in r['findings'] if f['field'].startswith('well.')]
+        assert selected and all(f['result']=='NOT_VERIFIABLE' for f in selected)
+
+
+@pytest.mark.parametrize('field,value',[('host_row','fabricated'),('manual_depth_m',None),('chart_excess_mode','invented'),('tie_back_liner_lap_m',-1)])
+def test_r2e_original_target_host_and_lap_rejections(case,field,value):
+    _,original,_=case;op=deepcopy(original)
+    if field in ('host_row','tie_back_liner_lap_m'):
+        op['job_type']='TIE BACK LNR 7"';op['hardware']=[hardware('Tie Back','0-700','7',6),hardware('Previous Casing','800','9.625',8.535),hardware('Previous Liner','700-1200','7',6),hardware('Open Hole Size','800-1200','8.5',8.5)]
+        op.pop('placement_config');choices=request('well',{'job_type':op['job_type'],'hardware':op['hardware']})['reference']['source_hardware_choices']
+        host=next(k for k,v in choices.items() if v['description']=='Previous Casing')
+        op['placement_config']={'job_type':op['job_type'],'target_row':'__manual__','manual_depth_m':700,'chart_excess_mode':'ignore','host_row':host}
+    op['placement_config'][field]=value
+    assert request('well',op)['reference']['geometry']['status']=='NOT_VERIFIABLE'
