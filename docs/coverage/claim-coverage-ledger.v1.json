@@ -29094,8 +29094,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -29192,8 +29192,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -29290,8 +29290,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -29388,8 +29388,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -29484,8 +29484,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -29580,8 +29580,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -29676,8 +29676,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -29772,8 +29772,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -29873,8 +29873,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -29974,8 +29974,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -30075,8 +30075,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -30176,8 +30176,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -30276,8 +30276,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -30376,8 +30376,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -30477,8 +30477,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -30538,7 +30538,7 @@
         "path": "c05_fluids.py",
         "symbol": "compare_document",
         "line": 17,
-        "sha256": "4b425e299bcd3a2d0e83793a95a4889e481b781937fe4b77ff6264102a0b6808",
+        "sha256": "27d41048179e0d8bc5dcc9f8bc4ce040584317696fbe9c167bf62bcbafbbfb6b",
         "field": "fluid.material_name"
       },
       "reference": {
@@ -30564,7 +30564,7 @@
       "component_tests": [
         "tests/test_c05.py::test_source_parity_order_and_independent_time_oracle"
       ],
-      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base",
+      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base; R2-C refreshes current C05 producer metadata; see R2C-fluid-spacer.md for fresh focused controls. No authentic job acceptance or verified-claim credit is added.",
       "correction": {
         "eligibility": "MANUAL_OR_UNPROVEN",
         "requires": "Fresh source/physical proof, explicit selection/consent and copy recheck; no automatic cascade"
@@ -30575,8 +30575,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -30636,7 +30636,7 @@
         "path": "c05_fluids.py",
         "symbol": "compare_document",
         "line": 17,
-        "sha256": "4b425e299bcd3a2d0e83793a95a4889e481b781937fe4b77ff6264102a0b6808",
+        "sha256": "27d41048179e0d8bc5dcc9f8bc4ce040584317696fbe9c167bf62bcbafbbfb6b",
         "field": "fluid.density"
       },
       "reference": {
@@ -30662,7 +30662,7 @@
       "component_tests": [
         "tests/test_c05.py::test_source_parity_order_and_independent_time_oracle"
       ],
-      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base",
+      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base; R2-C refreshes current C05 producer metadata; see R2C-fluid-spacer.md for fresh focused controls. No authentic job acceptance or verified-claim credit is added.",
       "correction": {
         "eligibility": "MANUAL_OR_UNPROVEN",
         "requires": "Fresh source/physical proof, explicit selection/consent and copy recheck; no automatic cascade"
@@ -30673,8 +30673,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -30734,7 +30734,7 @@
         "path": "c05_fluids.py",
         "symbol": "compare_document",
         "line": 17,
-        "sha256": "4b425e299bcd3a2d0e83793a95a4889e481b781937fe4b77ff6264102a0b6808",
+        "sha256": "27d41048179e0d8bc5dcc9f8bc4ce040584317696fbe9c167bf62bcbafbbfb6b",
         "field": "fluid.volume"
       },
       "reference": {
@@ -30760,7 +30760,7 @@
       "component_tests": [
         "tests/test_c05.py::test_source_parity_order_and_independent_time_oracle"
       ],
-      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base",
+      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base; R2-C refreshes current C05 producer metadata; see R2C-fluid-spacer.md for fresh focused controls. No authentic job acceptance or verified-claim credit is added.",
       "correction": {
         "eligibility": "MANUAL_OR_UNPROVEN",
         "requires": "Fresh source/physical proof, explicit selection/consent and copy recheck; no automatic cascade"
@@ -30771,8 +30771,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -30832,7 +30832,7 @@
         "path": "c05_fluids.py",
         "symbol": "compare_document",
         "line": 17,
-        "sha256": "4b425e299bcd3a2d0e83793a95a4889e481b781937fe4b77ff6264102a0b6808",
+        "sha256": "27d41048179e0d8bc5dcc9f8bc4ce040584317696fbe9c167bf62bcbafbbfb6b",
         "field": "fluid.pump_rate"
       },
       "reference": {
@@ -30858,7 +30858,7 @@
       "component_tests": [
         "tests/test_c05.py::test_source_parity_order_and_independent_time_oracle"
       ],
-      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base",
+      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base; R2-C refreshes current C05 producer metadata; see R2C-fluid-spacer.md for fresh focused controls. No authentic job acceptance or verified-claim credit is added.",
       "correction": {
         "eligibility": "MANUAL_OR_UNPROVEN",
         "requires": "Fresh source/physical proof, explicit selection/consent and copy recheck; no automatic cascade"
@@ -30869,8 +30869,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -30930,7 +30930,7 @@
         "path": "c05_fluids.py",
         "symbol": "compare_document",
         "line": 17,
-        "sha256": "4b425e299bcd3a2d0e83793a95a4889e481b781937fe4b77ff6264102a0b6808",
+        "sha256": "27d41048179e0d8bc5dcc9f8bc4ce040584317696fbe9c167bf62bcbafbbfb6b",
         "field": "fluid.duration_str"
       },
       "reference": {
@@ -30956,7 +30956,7 @@
       "component_tests": [
         "tests/test_c05.py::test_source_parity_order_and_independent_time_oracle"
       ],
-      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base",
+      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base; R2-C refreshes current C05 producer metadata; see R2C-fluid-spacer.md for fresh focused controls. No authentic job acceptance or verified-claim credit is added.",
       "correction": {
         "eligibility": "MANUAL_OR_UNPROVEN",
         "requires": "Fresh source/physical proof, explicit selection/consent and copy recheck; no automatic cascade"
@@ -30967,8 +30967,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -31028,7 +31028,7 @@
         "path": "c05_fluids.py",
         "symbol": "compare_document",
         "line": 17,
-        "sha256": "4b425e299bcd3a2d0e83793a95a4889e481b781937fe4b77ff6264102a0b6808",
+        "sha256": "27d41048179e0d8bc5dcc9f8bc4ce040584317696fbe9c167bf62bcbafbbfb6b",
         "field": "fluid.cumul_time_str"
       },
       "reference": {
@@ -31054,7 +31054,7 @@
       "component_tests": [
         "tests/test_c05.py::test_source_parity_order_and_independent_time_oracle"
       ],
-      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base",
+      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base; R2-C refreshes current C05 producer metadata; see R2C-fluid-spacer.md for fresh focused controls. No authentic job acceptance or verified-claim credit is added.",
       "correction": {
         "eligibility": "MANUAL_OR_UNPROVEN",
         "requires": "Fresh source/physical proof, explicit selection/consent and copy recheck; no automatic cascade"
@@ -31065,8 +31065,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -31126,7 +31126,7 @@
         "path": "c05_fluids.py",
         "symbol": "compare_document",
         "line": 17,
-        "sha256": "4b425e299bcd3a2d0e83793a95a4889e481b781937fe4b77ff6264102a0b6808",
+        "sha256": "27d41048179e0d8bc5dcc9f8bc4ce040584317696fbe9c167bf62bcbafbbfb6b",
         "field": "fluid.active_selection"
       },
       "reference": {
@@ -31152,7 +31152,7 @@
       "component_tests": [
         "tests/test_c05.py::test_source_parity_order_and_independent_time_oracle"
       ],
-      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base",
+      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base; R2-C refreshes current C05 producer metadata; see R2C-fluid-spacer.md for fresh focused controls. No authentic job acceptance or verified-claim credit is added.",
       "correction": {
         "eligibility": "MANUAL_OR_UNPROVEN",
         "requires": "Fresh source/physical proof, explicit selection/consent and copy recheck; no automatic cascade"
@@ -31163,8 +31163,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -31224,7 +31224,7 @@
         "path": "c05_fluids.py",
         "symbol": "compare_document",
         "line": 17,
-        "sha256": "4b425e299bcd3a2d0e83793a95a4889e481b781937fe4b77ff6264102a0b6808",
+        "sha256": "27d41048179e0d8bc5dcc9f8bc4ce040584317696fbe9c167bf62bcbafbbfb6b",
         "field": "fluid.execution_order"
       },
       "reference": {
@@ -31250,7 +31250,7 @@
       "component_tests": [
         "tests/test_c05.py::test_source_parity_order_and_independent_time_oracle"
       ],
-      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base",
+      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base; R2-C refreshes current C05 producer metadata; see R2C-fluid-spacer.md for fresh focused controls. No authentic job acceptance or verified-claim credit is added.",
       "correction": {
         "eligibility": "MANUAL_OR_UNPROVEN",
         "requires": "Fresh source/physical proof, explicit selection/consent and copy recheck; no automatic cascade"
@@ -31261,8 +31261,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -31321,7 +31321,7 @@
         "path": "c05_fluids.py",
         "symbol": "compare_document",
         "line": 17,
-        "sha256": "4b425e299bcd3a2d0e83793a95a4889e481b781937fe4b77ff6264102a0b6808",
+        "sha256": "27d41048179e0d8bc5dcc9f8bc4ce040584317696fbe9c167bf62bcbafbbfb6b",
         "field": "spacer.base"
       },
       "reference": {
@@ -31347,7 +31347,7 @@
       "component_tests": [
         "tests/test_c05.py::test_all_configured_spacer_modes_and_display"
       ],
-      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base",
+      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base; R2-C refreshes current C05 producer metadata; see R2C-fluid-spacer.md for fresh focused controls. No authentic job acceptance or verified-claim credit is added.",
       "correction": {
         "eligibility": "MANUAL_OR_UNPROVEN",
         "requires": "Fresh source/physical proof, explicit selection/consent and copy recheck; no automatic cascade"
@@ -31358,8 +31358,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -31418,7 +31418,7 @@
         "path": "c05_fluids.py",
         "symbol": "compare_document",
         "line": 17,
-        "sha256": "4b425e299bcd3a2d0e83793a95a4889e481b781937fe4b77ff6264102a0b6808",
+        "sha256": "27d41048179e0d8bc5dcc9f8bc4ce040584317696fbe9c167bf62bcbafbbfb6b",
         "field": "spacer.gross"
       },
       "reference": {
@@ -31444,7 +31444,7 @@
       "component_tests": [
         "tests/test_c05.py::test_all_configured_spacer_modes_and_display"
       ],
-      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base",
+      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base; R2-C refreshes current C05 producer metadata; see R2C-fluid-spacer.md for fresh focused controls. No authentic job acceptance or verified-claim credit is added.",
       "correction": {
         "eligibility": "MANUAL_OR_UNPROVEN",
         "requires": "Fresh source/physical proof, explicit selection/consent and copy recheck; no automatic cascade"
@@ -31455,8 +31455,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -31515,7 +31515,7 @@
         "path": "c05_fluids.py",
         "symbol": "compare_document",
         "line": 17,
-        "sha256": "4b425e299bcd3a2d0e83793a95a4889e481b781937fe4b77ff6264102a0b6808",
+        "sha256": "27d41048179e0d8bc5dcc9f8bc4ce040584317696fbe9c167bf62bcbafbbfb6b",
         "field": "spacer.preparation_water"
       },
       "reference": {
@@ -31541,7 +31541,7 @@
       "component_tests": [
         "tests/test_c05.py::test_all_configured_spacer_modes_and_display"
       ],
-      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base",
+      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base; R2-C refreshes current C05 producer metadata; see R2C-fluid-spacer.md for fresh focused controls. No authentic job acceptance or verified-claim credit is added.",
       "correction": {
         "eligibility": "MANUAL_OR_UNPROVEN",
         "requires": "Fresh source/physical proof, explicit selection/consent and copy recheck; no automatic cascade"
@@ -31552,8 +31552,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -31612,7 +31612,7 @@
         "path": "c05_fluids.py",
         "symbol": "compare_document",
         "line": 17,
-        "sha256": "4b425e299bcd3a2d0e83793a95a4889e481b781937fe4b77ff6264102a0b6808",
+        "sha256": "27d41048179e0d8bc5dcc9f8bc4ce040584317696fbe9c167bf62bcbafbbfb6b",
         "field": "spacer.tank"
       },
       "reference": {
@@ -31638,7 +31638,7 @@
       "component_tests": [
         "tests/test_c05.py::test_all_configured_spacer_modes_and_display"
       ],
-      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base",
+      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base; R2-C refreshes current C05 producer metadata; see R2C-fluid-spacer.md for fresh focused controls. No authentic job acceptance or verified-claim credit is added.",
       "correction": {
         "eligibility": "MANUAL_OR_UNPROVEN",
         "requires": "Fresh source/physical proof, explicit selection/consent and copy recheck; no automatic cascade"
@@ -31649,8 +31649,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -31711,7 +31711,7 @@
         "path": "c05_fluids.py",
         "symbol": "compare_document",
         "line": 17,
-        "sha256": "4b425e299bcd3a2d0e83793a95a4889e481b781937fe4b77ff6264102a0b6808",
+        "sha256": "27d41048179e0d8bc5dcc9f8bc4ce040584317696fbe9c167bf62bcbafbbfb6b",
         "field": "operational_spacer"
       },
       "reference": {
@@ -31737,7 +31737,7 @@
       "component_tests": [
         "tests/test_c05.py::test_source_parity_order_and_independent_time_oracle"
       ],
-      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base",
+      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base; R2-C refreshes current C05 producer metadata; see R2C-fluid-spacer.md for fresh focused controls. No authentic job acceptance or verified-claim credit is added.",
       "correction": {
         "eligibility": "MANUAL_OR_UNPROVEN",
         "requires": "Fresh source/physical proof, explicit selection/consent and copy recheck; no automatic cascade"
@@ -31748,8 +31748,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -31810,7 +31810,7 @@
         "path": "c05_fluids.py",
         "symbol": "compare_document",
         "line": 17,
-        "sha256": "4b425e299bcd3a2d0e83793a95a4889e481b781937fe4b77ff6264102a0b6808",
+        "sha256": "27d41048179e0d8bc5dcc9f8bc4ce040584317696fbe9c167bf62bcbafbbfb6b",
         "field": "preflush_chemistry"
       },
       "reference": {
@@ -31836,7 +31836,7 @@
       "component_tests": [
         "tests/test_c05.py::test_source_parity_order_and_independent_time_oracle"
       ],
-      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base",
+      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base; R2-C refreshes current C05 producer metadata; see R2C-fluid-spacer.md for fresh focused controls. No authentic job acceptance or verified-claim credit is added.",
       "correction": {
         "eligibility": "MANUAL_OR_UNPROVEN",
         "requires": "Fresh source/physical proof, explicit selection/consent and copy recheck; no automatic cascade"
@@ -31847,8 +31847,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -31909,7 +31909,7 @@
         "path": "c05_fluids.py",
         "symbol": "compare_document",
         "line": 17,
-        "sha256": "4b425e299bcd3a2d0e83793a95a4889e481b781937fe4b77ff6264102a0b6808",
+        "sha256": "27d41048179e0d8bc5dcc9f8bc4ce040584317696fbe9c167bf62bcbafbbfb6b",
         "field": "scavenger_complete"
       },
       "reference": {
@@ -31935,7 +31935,7 @@
       "component_tests": [
         "tests/test_c05.py::test_source_parity_order_and_independent_time_oracle"
       ],
-      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base",
+      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base; R2-C refreshes current C05 producer metadata; see R2C-fluid-spacer.md for fresh focused controls. No authentic job acceptance or verified-claim credit is added.",
       "correction": {
         "eligibility": "MANUAL_OR_UNPROVEN",
         "requires": "Fresh source/physical proof, explicit selection/consent and copy recheck; no automatic cascade"
@@ -31946,8 +31946,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -32008,7 +32008,7 @@
         "path": "c05_fluids.py",
         "symbol": "compare_document",
         "line": 17,
-        "sha256": "4b425e299bcd3a2d0e83793a95a4889e481b781937fe4b77ff6264102a0b6808",
+        "sha256": "27d41048179e0d8bc5dcc9f8bc4ce040584317696fbe9c167bf62bcbafbbfb6b",
         "field": "diesel_static_context"
       },
       "reference": {
@@ -32034,7 +32034,7 @@
       "component_tests": [
         "tests/test_c05.py::test_source_parity_order_and_independent_time_oracle"
       ],
-      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base",
+      "evidence_scope": "HISTORICAL_COMPONENT_ONLY; run 41659767144/head89e95ced0cb42a002e50c1bcc869f9a0c145bdf1, unchanged adapters/tests at R2 base; R2-C refreshes current C05 producer metadata; see R2C-fluid-spacer.md for fresh focused controls. No authentic job acceptance or verified-claim credit is added.",
       "correction": {
         "eligibility": "MANUAL_OR_UNPROVEN",
         "requires": "Fresh source/physical proof, explicit selection/consent and copy recheck; no automatic cascade"
@@ -32045,8 +32045,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -32142,8 +32142,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -32239,8 +32239,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -32336,8 +32336,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -32433,8 +32433,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -32530,8 +32530,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -32627,8 +32627,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -32724,8 +32724,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -32821,8 +32821,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -32917,8 +32917,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -33013,8 +33013,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -33109,8 +33109,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -33205,8 +33205,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -33301,8 +33301,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -33398,8 +33398,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -33495,8 +33495,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -33592,8 +33592,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -33688,8 +33688,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -33784,8 +33784,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -33880,8 +33880,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -33976,8 +33976,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -34072,8 +34072,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -34168,8 +34168,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -34264,8 +34264,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -34360,8 +34360,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -34456,8 +34456,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -34552,8 +34552,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -34648,8 +34648,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -34744,8 +34744,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -34840,8 +34840,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -34936,8 +34936,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -35032,8 +35032,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -35128,8 +35128,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -35224,8 +35224,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -35320,8 +35320,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -35416,8 +35416,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -35512,8 +35512,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -35608,8 +35608,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -35704,8 +35704,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -35800,8 +35800,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -35896,8 +35896,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -35992,8 +35992,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -36088,8 +36088,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -36184,8 +36184,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -36280,8 +36280,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -36376,8 +36376,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -36472,8 +36472,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -36568,8 +36568,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -36664,8 +36664,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -36760,8 +36760,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -36856,8 +36856,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -36952,8 +36952,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -37048,8 +37048,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -37144,8 +37144,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -37240,8 +37240,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -37336,8 +37336,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -37432,8 +37432,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -37528,8 +37528,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -37624,8 +37624,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -37720,8 +37720,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -37816,8 +37816,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -37912,8 +37912,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -38008,8 +38008,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -38104,8 +38104,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -38200,8 +38200,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -38296,8 +38296,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -38392,8 +38392,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -38487,8 +38487,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -38585,8 +38585,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -38682,8 +38682,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -38778,8 +38778,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -38874,8 +38874,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -38970,8 +38970,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -39066,8 +39066,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -39167,8 +39167,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -39268,8 +39268,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -39369,8 +39369,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -39470,8 +39470,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -39883,8 +39883,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -39968,8 +39968,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -40053,8 +40053,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -40138,8 +40138,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -40223,8 +40223,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -40308,8 +40308,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",
@@ -40393,8 +40393,8 @@
           "origin": "checker",
           "path": "g07_report.py",
           "symbol": "PrivateSession.check",
-          "line": 678,
-          "sha256": "9944d2f9f780ac10c4800c0308c769b41bb1d32809e7901c74dd93a78abe5b2c"
+          "line": 712,
+          "sha256": "33f1279f333d9716d639581dbdc12a686f6dc1cb07607c95538d344ee14c0520"
         },
         "implementation": "CONDITIONAL_ADAPTER_ROUTE",
         "browser_in_R2A": "NOT_RUN",

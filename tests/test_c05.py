@@ -174,3 +174,55 @@ for action in (lambda: socket.socket().connect(('127.0.0.1',9)),
     else: raise AssertionError('Boundary bypass')
 """
     subprocess.run([sys.executable,'-B','-c',script],cwd=ROOT,check=True,capture_output=True,text=True)
+
+
+def test_r2c_printed_dose_uses_source_display_and_physical_column(case):
+    path, op, source = case
+    result = compare_document(path, op)
+    doses = select(result, 'spacer.dose')
+    assert len(doses) == len(source['reference']['spacer']['recipe']['materials'])
+    for f, material, display in zip(doses, source['reference']['spacer']['recipe']['materials'], source['reference']['spacer']['rows']):
+        assert f['result'] == 'MATCH' and f['locator']['column'] == 4
+        assert f['material'] == material['name'] and f['full_precision_expected'] == material['dose']
+        assert f['raw_reported_text'] == display['lbs / bbl or gal / bbl']
+        assert f['unit'] == material['unit'] + '/bbl'
+
+
+@pytest.mark.parametrize('mutation', ['dose', 'powder-unit', 'liquid-unit', 'header', 'duplicate-row', 'split-dose', 'merged-dose', 'material-type', 'missing-note', 'duplicate-note', 'tank'])
+def test_r2c_dose_and_note_ambiguities_keep_independent_boundaries(case, tmp_path, mutation):
+    path, _, source = case
+    name = source['reference']['spacer']['recipe']['materials'][0]['name']
+    def change(d):
+        t = next(t for t in d.tables if t.cell(0, 0).text == 'Spacer Additives Data')
+        row = next(r for r in t.rows if r.cells[1].text == name)
+        if mutation == 'dose': row.cells[4].text = '999999.0'
+        elif mutation == 'powder-unit': row.cells[4].text += ' gal/bbl'
+        elif mutation == 'liquid-unit': next(r for r in t.rows if r.cells[1].text == 'Surfactant').cells[4].text = '2.0'
+        elif mutation == 'header': t.cell(2, 4).text = 'lb/gal'
+        elif mutation == 'duplicate-row': row._tr.addnext(deepcopy(row._tr))
+        elif mutation == 'split-dose': row.cells[4].add_paragraph('126.0')
+        elif mutation == 'merged-dose': row.cells[4].merge(row.cells[5])
+        elif mutation == 'material-type': row.cells[2].text = 'Cement'
+        else:
+            note = next(p for p in d.paragraphs if 'Mix above Additives' in p.text)
+            if mutation == 'missing-note': note.text = ''
+            elif mutation == 'duplicate-note': note._p.addnext(deepcopy(note._p))
+            else: note.text = note.text.replace('Mud Reserve Tanks', 'Cement Unit Tanks')
+    result = mutate(case, tmp_path, change)
+    target = select(result, 'spacer.dose', material='Surfactant' if mutation == 'liquid-unit' else name)
+    assert len(target) == 1
+    if mutation == 'dose': assert target[0]['result'] == 'DISCREPANCY' and target[0]['delta'] is not None
+    elif mutation in ('missing-note', 'duplicate-note'):
+        assert target[0]['result'] == 'MATCH'  # dose row owns its association; NOTE owns water/tank only
+        assert all(f['result'] == 'NOT_VERIFIABLE' for f in result['findings'] if f['field'] in ('spacer.tank', 'spacer.preparation_water'))
+    elif mutation == 'tank':
+        assert target[0]['result'] == 'MATCH' and select(result, 'spacer.tank')[0]['result'] == 'DISCREPANCY'
+    else: assert target[0]['result'] == 'NOT_VERIFIABLE'
+    assert result['records'] and result['unverified_record_orders']
+
+
+def test_r2c_inactive_Spacer_has_no_dose_credit(case):
+    path, _, _ = case
+    result = compare_document(path, {'job_type':'CMT PLUG', 'fluids':{'Main':{'volume':20,'density':118,'pump_rate':'2-4'}}})
+    assert not select(result, 'spacer.dose')
+    assert any(f['result'] == 'DISCREPANCY' for f in select(result, 'fluid.active_selection', fluid='Spacer'))

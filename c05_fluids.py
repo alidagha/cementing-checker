@@ -70,6 +70,21 @@ def compare_document(docx, operator):
                     'standalone_spacer.formulation_from_state / calculate_spacer / field_rows')
                 f['material'] = material['name']
                 findings.append(f)
+            # The original Word builder omits lb/bbl in powder cells, while
+            # retaining gal/bbl for liquids. The wrapper returns that projection.
+            dose_display = display.get(SPACER_HEADERS[4])
+            dose_unit = material['unit'] + '/bbl'
+            suffix = ' gal/bbl' if material['unit'] == 'gal' else ''
+            proven = material['unit'] in ('lb', 'gal') and isinstance(dose_display, str) and re.fullmatch(
+                r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)' + re.escape(suffix), dose_display)
+            record = row[4] if proven and row and norm(row[4]['column_label'] or '') == norm(SPACER_HEADERS[4]) else None
+            expected_dose = dose_display.removesuffix(suffix) if proven and suffix else dose_display if proven else ''
+            f = finding(record, 'spacer.dose', expected_dose, material['dose'], suffix.strip(),
+                'standalone_spacer.field_rows / phase_10_procedure.build_master_context')
+            f.update(material=material['name'], unit=dose_unit, source_display=dose_display)
+            if not proven:
+                f['reason'] = 'Source dosage display grammar or unit is unproved'
+            findings.append(f)
         # Only a directly adjacent, unique source-pattern NOTE belongs to this table.
         notes = []
         if table and len(headers) == 1:
@@ -96,7 +111,7 @@ def compare_document(docx, operator):
     return finish(parsed, source, findings, [
         'PARTIAL only: optional fluids follow source applicability; no mandatory Pre Flush/Spacer/Diesel',
         'Pre Flush chemistry, operational Spacer Ahead/Behind preparation, CT stage allocation and free Procedure prose remain UNIMPLEMENTED',
-        'Spacer dosage and measured Lab rows remain unverified; no inverse solve or Word editing'])
+        'Only source-proved Spacer dosage columns are compared; measured Lab remains unverified; no inverse solve or Word editing'])
 
 
 def main():
