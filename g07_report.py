@@ -937,12 +937,13 @@ class PrivateSession:
             if admission['status'] != 'SOURCE_ADMITTED' or not procedure_identity(submitted, procedure, self.source_catalog):
                 c09_status = 'NOT_RUN / NOT_VERIFIABLE: C09 requires matching, source-admitted independent cement/fluid/hardware inputs.'
             else:
-                from c09_procedure import compare_document as procedure_compare
+                from c09_procedure import compare_document as procedure_compare, stage_availability
                 c09_operator_sha = digest(procedure)
                 try:
                     result = procedure_compare(path, procedure)
                 except (subprocess.TimeoutExpired, ValueError, OSError, KeyError, TypeError):
-                    result = {'status': 'PARTIAL_FINDINGS_ONLY', 'findings': [{'field': 'procedure_and_notes',
+                    result = {'status': 'NOT_VERIFIABLE', 'availability':stage_availability(procedure,{},[]),
+                        'findings': [{'field': 'procedure_and_notes',
                         'locator': None, 'result': 'NOT_VERIFIABLE',
                         'reason': 'C09 source reference timed out, was unavailable or rejected; no Procedure/NOTES comparison is credited.'}]}
                 for finding in result.get('findings', []):
@@ -954,7 +955,8 @@ class PrivateSession:
                 if result.get('source_document_sha256', sha256(original).hexdigest()) != sha256(original).hexdigest():
                     raise Refusal('C09 document identity drift')
                 results['C09'] = result
-                qualified = source and any(f.get('result') in ('MATCH', 'DISCREPANCY') for f in result.get('findings', []))
+                qualified = source and result['status']=='PARTIAL_FINDINGS_ONLY' and any(
+                    f.get('locator') is not None and f.get('result') in ('MATCH', 'DISCREPANCY') for f in result.get('findings', []))
                 c09_status = 'PARTIAL_FINDINGS_ONLY' if qualified else 'NOT_VERIFIABLE: no source-backed Procedure/NOTES comparison completed.'
                 if qualified: completed.append('C09')
         availability['C09'] = c09_status
@@ -962,7 +964,9 @@ class PrivateSession:
             availability['Configured Standalone Spacer'] = spacer_admission['status'] + ': ' + spacer_admission['reason']
         if identities() != pins or safe_input(path) != original or digest(inputs) != input_sha:
             raise Refusal('Document, independent inputs or source changed during checking')
-        rejected=any(r['status']!='PARTIAL_FINDINGS_ONLY' for r in results.values())
+        # Optional unverified C09 does not erase independently valid adapters.
+        rejected=any(r['status']!='PARTIAL_FINDINGS_ONLY' for name,r in results.items()
+            if not(name=='C09' and r['status']=='NOT_VERIFIABLE'))
         outcome=admission['status'] if admission['status'] in ('INPUT_INCOMPLETE','INPUT_REJECTED') else 'INPUT_REJECTED' if rejected else 'PARTIAL_FINDINGS_ONLY' if completed else 'CHECK_NOT_RUN'
         report = {'status': 'PARTIAL_FINDINGS_ONLY', 'run_outcome':outcome,'completed_adapters':completed,'document_sha256': sha256(original).hexdigest(),
             'operator_sha256': input_sha, 'pins': pins, 'results': results, 'availability': availability,
@@ -987,6 +991,7 @@ class PrivateSession:
             'C02_status':results.get('C03',{}).get('c02',{}).get('status','INPUT_REJECTED' if source_attempted else 'NOT_RUN'),
             'C03_status':results.get('C03',{}).get('status','INPUT_REJECTED' if source_attempted else 'NOT_RUN'),
             'C09_operator_sha256':c09_operator_sha, 'C09_status':c09_status,
+            'C09_stage_availability':results.get('C09',{}).get('availability'),
             'sacks_findings':[f for f in results.get('C03',{}).get('c02',{}).get('findings',[]) if f['field']=='sacks']}
         if spacer_admission is not None:
             report['receipt']['standalone_spacer_admission'] = spacer_admission
