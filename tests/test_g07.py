@@ -986,3 +986,186 @@ def test_r2c_source_receipt_cannot_cross_sessions(r2c_spacer_control):
     other = g.PrivateSession(); other.document = p; other.result = deepcopy(r); other.revision = s.revision
     with pytest.raises(ValueError): other.current()
     assert other.result is None and other.copy_output is None and s.current() is r
+
+
+@pytest.fixture(scope='module')
+def r2d_lab_control():
+    from test_c07 import operator
+    from engineering_source import request
+    op=operator()
+    # Model the actual numeric UI types before rendering the synthetic oracle.
+    # In particular, the original UCA summary preserves 3000 versus 3000.0.
+    op['conditions']={k:float(v) for k,v in op['conditions'].items()}
+    slurry=op['cement_operator']['slurries']['Main']
+    for key in ('client_volume_bbl','density_pcf','cement_sg'):slurry[key]=float(slurry[key])
+    qc=op['measurements']['Main']
+    for key in ('free_water','free_water_45','surface_hardened_hours','api_fl','thickening_cell'):qc[key]=float(qc[key])
+    for row in qc['compressive'].values():
+        for key in row:
+            if key!='selected':row[key]=float(row[key])
+    with tempfile.TemporaryDirectory(dir=g.ROOT/'tmp',prefix='r2d-lab-') as folder:
+        path=Path(folder)/'synthetic.docx'
+        source=request('render_lab',op,docx=str(path))
+        yield path.read_bytes(),op,source
+
+
+def test_r2d_conflicting_lab_recipe_cannot_reach_source(r2d_lab_control, monkeypatch):
+    raw,lab,_=r2d_lab_control;inputs=submitted(lab['cement_operator']);inputs['lab']=deepcopy(lab)
+    inputs['lab']['cement_operator']['slurries']['Main']['client_volume_bbl']=99.0
+    import c07_lab
+    monkeypatch.setattr(c07_lab,'compare_document',lambda *a,**k:pytest.fail('Crossed C07 recipe reached transport'))
+    s=g.PrivateSession();p=s.store('synthetic.docx',raw);r=s.check(p,inputs)
+    assert r['results']['C07']['status']=='INPUT_REJECTED'
+    assert 'C02' in r['completed_adapters'] and 'C07' not in r['completed_adapters']
+    assert p.read_bytes()==raw
+
+
+def r2d_inputs(lab):
+    inputs=submitted(lab['cement_operator']);inputs['lab']=deepcopy(lab)
+    draft={'lab_on':True,'conditions':deepcopy(lab['conditions']),'measurements':deepcopy(lab['measurements']),
+        'lab_confirmed':lab['confirmed'],'measured_fluids':list(lab['measurements'])}
+    return inputs,draft
+
+
+@pytest.mark.parametrize('cross',['job','mud','roles','confirmation','observation','spacer'])
+def test_r2d_crossed_draft_roles_and_formulations_never_dispatch(r2d_lab_control, monkeypatch, cross):
+    raw,lab,_=r2d_lab_control;inputs,draft=r2d_inputs(lab)
+    if cross=='job': inputs['lab']['job_type']='CMT PLUG'
+    if cross=='mud': inputs['lab']['mud_type']='OBM'
+    if cross=='roles': inputs['lab']['active_fluids']=['Tail']
+    if cross=='confirmation': draft['lab_confirmed']=False
+    if cross=='observation': draft['measurements']['Main']['api_fl']=7.0
+    if cross=='spacer': inputs['lab']['spacer_operator']={'job_type':lab['job_type'],'fluids':{}}
+    import c07_lab
+    monkeypatch.setattr(c07_lab,'compare_document',lambda *a,**k:pytest.fail('Unbound C07 reference reached transport'))
+    s=g.PrivateSession();p=s.store('synthetic.docx',raw);r=s.check(p,inputs,draft=draft)
+    assert r['results']['C07']['status']=='INPUT_REJECTED' and 'C07' not in r['completed_adapters']
+    assert r['receipt']['lab_admission']['payload_admitted_by_fluid']=={}
+    assert 'C02' in r['completed_adapters'] and p.read_bytes()==raw
+
+
+def test_r2d_confirmed_source_snapshot_and_stale_foreign_receipts(r2d_lab_control):
+    raw,lab,_=r2d_lab_control;inputs,draft=r2d_inputs(lab);s=g.PrivateSession();p=s.store('synthetic.docx',raw)
+    revision=g.submission_revision(raw,'synthetic.docx',inputs,draft);s.invalidate(revision)
+    r=s.check(p,inputs,revision=revision,draft=draft)
+    assert r['receipt']['cement_admission']['status']=='SOURCE_ADMITTED'
+    assert r['receipt']['lab_admission']=={'status':'SOURCE_ADMITTED_PARTIAL_REFERENCE',
+        'operator_sha256':g.digest(inputs['lab']),'payload_admitted_by_fluid':{'Main':True}}
+    assert r['receipt']['inputs_snapshot']['lab']==lab and r['receipt']['widget_snapshot']==draft
+    findings=r['results']['C07']['findings'];assert findings and all(f['result']=='MATCH' for f in findings)
+    assert {'INDEPENDENT_MEASUREMENT','AUTOMATIC_SOURCE_FORMULATION','SOURCE_DERIVED_FROM_INDEPENDENT_MEASUREMENTS'}<=set(f['reference_kind'] for f in findings)
+    other=g.PrivateSession();other.document=p;other.result=deepcopy(r);other.revision=revision
+    with pytest.raises(ValueError):other.current()
+    changed=deepcopy(draft);changed['measurements']['Main']['api_fl']=7.0
+    assert s.invalidate(g.submission_revision(raw,'synthetic.docx',inputs,changed))
+    assert s.current() is None and s.copy_output is s.volume_preview is s.dv_preview is None
+    assert p.read_bytes()==raw
+
+
+@pytest.mark.parametrize('identity',['operator','source','template'])
+def test_r2d_source_evidence_identity_is_not_trusted_on_status_alone(r2d_lab_control, monkeypatch, identity):
+    raw,lab,_=r2d_lab_control;inputs,draft=r2d_inputs(lab)
+    import c07_lab
+    real=c07_lab.compare_document
+    def swapped(*a,**k):
+        result=real(*a,**k);ref=result['reference']
+        if identity=='template':ref['reference']['template_sha256']='0'*64
+        else:ref['operator_input_sha256' if identity=='operator' else 'source_sha']='0'*64
+        return result
+    monkeypatch.setattr(c07_lab,'compare_document',swapped)
+    s=g.PrivateSession();p=s.store('synthetic.docx',raw)
+    with pytest.raises(ValueError,match='C07'):s.check(p,inputs,draft=draft)
+    assert s.current() is None and s.copy_output is None and p.read_bytes()==raw
+
+
+def test_r2d_main_and_lead_independent_observations_and_recipes(r2d_lab_control):
+    from engineering_source import request
+    _,original,_=r2d_lab_control;lab=deepcopy(original)
+    lab['active_fluids']=['Main','Lead'];cop=lab['cement_operator'];cop['active_fluids']=lab['active_fluids']
+    cop['slurries']['Lead']=dict(deepcopy(cop['slurries']['Main']),density_pcf=118,client_volume_bbl=20)
+    lab['measurements']['Lead']=deepcopy(lab['measurements']['Main'])
+    lab['measurements']['Lead']['rheology']['surface_down']=deepcopy(lab['measurements']['Main']['rheology']['bhct_up'])
+    lab['measurements']['Lead']['api_fl']=8.0
+    inputs,draft=r2d_inputs(lab)
+    with tempfile.TemporaryDirectory(dir=g.ROOT/'tmp',prefix='r2d-two-') as folder:
+        path=Path(folder)/'synthetic.docx';request('render_lab',lab,docx=str(path));raw=path.read_bytes()
+        s=g.PrivateSession();p=s.store('synthetic.docx',raw);r=s.check(p,inputs,draft=draft)
+        assert r['receipt']['lab_admission']['payload_admitted_by_fluid']=={'Main':True,'Lead':True}
+        findings=r['results']['C07']['findings'];assert all(f['result']=='MATCH' for f in findings)
+        values={f['slurry']:f for f in findings if f['field']=='lab.filtrate_30min'}
+        assert values['Main']['full_precision_expected']==6.2 and values['Lead']['full_precision_expected']==8.0
+        assert values['Main']['locator']!=values['Lead']['locator'] and p.read_bytes()==raw
+
+
+def test_r2d_spacer_sample_requires_current_c05_identity(r2d_lab_control, monkeypatch):
+    from engineering_source import request
+    _,original,_=r2d_lab_control;lab=deepcopy(original);lab['active_fluids'].append('Spacer')
+    lab['cement_operator']['active_fluids'].append('Spacer')
+    lab['measurements']['Spacer']={'rheology':{'bhct_down':deepcopy(lab['measurements']['Main']['rheology']['bhct_down'])}}
+    fop={'job_type':lab['job_type'],'mud_type':'WBM','fluids':{'Main':{'volume':50,'density':104,'pump_rate':2},
+        'Spacer':{'volume':20,'density':110,'pump_rate':2}},'standalone_spacer':{'mode':'Barite','dead_vol':0.0,'tank_name':'Mud Reserve Tanks'}}
+    lab['spacer_operator']=fop;inputs,draft=r2d_inputs(lab);inputs['fluids']=deepcopy(fop)
+    with tempfile.TemporaryDirectory(dir=g.ROOT/'tmp',prefix='r2d-spacer-') as folder:
+        path=Path(folder)/'synthetic.docx';request('render_lab',lab,docx=str(path));raw=path.read_bytes()
+        s=g.PrivateSession();p=s.store('synthetic.docx',raw);r=s.check(p,inputs,draft=draft)
+        assert r['receipt']['standalone_spacer_admission']['status']=='SOURCE_ADMITTED'
+        assert r['receipt']['lab_admission']['payload_admitted_by_fluid']=={'Main':True,'Spacer':True}
+        findings=[f for f in r['results']['C07']['findings'] if f['slurry']=='Spacer']
+        assert findings and all(f['result']=='MATCH' for f in findings)
+        assert {'INDEPENDENT_MEASUREMENT','AUTOMATIC_SOURCE_FORMULATION'}<=set(f['reference_kind'] for f in findings)
+        inputs['lab']['spacer_operator']['fluids']['Spacer']['volume']=21
+        draft['measurements']=deepcopy(inputs['lab']['measurements'])
+        import c07_lab
+        monkeypatch.setattr(c07_lab,'compare_document',lambda *a,**k:pytest.fail('Crossed Spacer sample reached C07'))
+        rejected=s.check(p,inputs,draft=draft)
+        assert rejected['results']['C07']['status']=='INPUT_REJECTED' and p.read_bytes()==raw
+
+
+def test_r2d_ui_measured_groups_confirmation_and_invalidation(r2d_lab_control, monkeypatch):
+    from io import BytesIO
+    import streamlit as st
+    from streamlit import config
+    from streamlit.testing.v1 import AppTest
+    raw,lab,_=r2d_lab_control;upload=BytesIO(raw);upload.name='synthetic.docx'
+    monkeypatch.setattr(st,'file_uploader',lambda *a,**k:upload)
+    previous=config.get_option('browser.gatherUsageStats')
+    def box(app,label):return next(w for w in app.checkbox if w.label==label)
+    try:
+        config.set_option('browser.gatherUsageStats',False)
+        app=AppTest.from_file(str(g.ROOT/'checker_ui.py'),default_timeout=60).run()
+        app.selectbox(key='job').select(lab['job_type']).run();app.selectbox(key='mud').select('WBM').run()
+        app.multiselect(key='active:CSG 20":WBM').select('Main').run();prefix='CSG 20":Main:'
+        for key,value in [('volume',50.0),('density',104.0),('sg',3.2)]:app.number_input(key=prefix+key).set_value(value)
+        app.selectbox(key=prefix+'base').select('Cement G Delijan');app.checkbox(key=prefix+'neat').check().run()
+        box(app,'Check partial laboratory evidence').check().run()
+        for key,value in lab['conditions'].items():app.number_input(key='lab:CSG 20":'+key).set_value(float(value))
+        app.selectbox(key='lab-fluid:CSG 20"').select('Main').run();p='lab:CSG 20":Main:'
+        assert not box(app,'I confirm these independent Lab reference inputs (not Word approval)').value
+        for dataset in lab['measurements']['Main']['rheology']:app.checkbox(key=p+dataset+':selected').check().run()
+        for group in ['filtrate','thickening','uca','crush']:app.checkbox(key=p+group+':selected').check().run()
+        # Selected incomplete groups are transported unchanged and rejected by source.
+        next(w for w in app.button if w.label=='Run Check').click().run(timeout=90)
+        assert app.session_state['_private'].result['results']['C07']['status']=='REFERENCE_INPUT_ERROR'
+        qc=lab['measurements']['Main']
+        for key in ['free_water','free_water_45','surface_hardened_hours','api_fl','thickening_cell']:
+            app.number_input(key=p+key).set_value(float(qc[key]))
+        for key in ['thickening_test_start','thickening_30_bc','thickening_50_bc','thickening_time']:app.text_input(key=p+key).set_value(qc[key])
+        for dataset,data in qc['rheology'].items():
+            for rpm,value in data['readings'].items():app.number_input(key=p+dataset+':'+rpm).set_value(float(value))
+            for key in ['gel_10_sec','gel_10_min']:app.text_input(key=p+dataset+':'+key).set_value(str(data[key]))
+        for test,row in qc['compressive'].items():
+            for key,value in row.items():
+                if key!='selected':app.number_input(key=p+test+':'+key).set_value(float(value))
+        app.run();assert app.session_state['_private'].result is None
+        box(app,'I confirm these independent Lab reference inputs (not Word approval)').check().run()
+        next(w for w in app.button if w.label=='Run Check').click().run(timeout=90)
+        assert not app.exception
+        r=app.session_state['_private'].current();actual=r['receipt']['inputs_snapshot']['lab']
+        assert r['receipt']['lab_admission']['payload_admitted_by_fluid']=={'Main':True}
+        assert actual['confirmed'] is True and actual['measurements']['Main']['api_fl']==6.2
+        assert type(actual['measurements']['Main']['api_fl']) is float
+        assert all(f['result']=='MATCH' for f in r['results']['C07']['findings'])
+        app.number_input(key=p+'api_fl').set_value(7.0).run()
+        assert app.session_state['_private'].result is None and not box(app,'I confirm these independent Lab reference inputs (not Word approval)').value
+        assert app.session_state['_private'].document.read_bytes()==raw
+    finally:config.set_option('browser.gatherUsageStats',previous)

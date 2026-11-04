@@ -93,24 +93,60 @@ def main():
     hop = {'job_type': job, 'hardware': hardware} if job and hardware and all('Description' in r and 'MD (m)' in r for r in hardware) else None
     with st.expander('Independent laboratory observations (partial C07)'):
         lab_on = st.checkbox('Check partial laboratory evidence')
-        conditions = {}; measurements = {}; measured_fluid = None
+        conditions = {}; measurements = {}; measured_fluid = None; measured_fluids = []; lab_confirmed = False; lab_groups = {}
         if lab_on:
             for key, label in (('bhct', 'BHCT (degF)'), ('bhst', 'BHST (degF)'), ('bhsp', 'BHSP (psi)')):
                 value = st.number_input(label, value=None, key=f'lab:{job}:{key}')
                 if value is not None: conditions[key] = value
-            fluid = st.selectbox('Measured fluid', active, index=None, key=f'lab-fluid:{job}')
-            measured_fluid = fluid
-            if fluid:
-                qc = {}
+            lab_roles = [f for f in active if f in catalog['lab']['roles']]
+            measured_fluid = st.selectbox('Measured fluid', lab_roles, index=None, key=f'lab-fluid:{job}')
+            additional = st.multiselect('Additional measured fluids (independent observations for each)',
+                [f for f in lab_roles if f != measured_fluid], key=f'lab-additional:{job}:{measured_fluid}')
+            measured_fluids = [f for f in active if f == measured_fluid or f in additional]
+            for fluid in measured_fluids:
+                qc = {}; prefix = f'lab:{job}:{fluid}:'
+                st.text(fluid+' — independent laboratory observations')
                 for key, label in (('free_water', 'Free water (ml)'), ('free_water_45', 'Free water at 45 degrees (ml)'), ('surface_hardened_hours', 'Surface hardened hours')):
-                    value = st.number_input(label, value=None, key=f'lab:{job}:{fluid}:{key}')
+                    value = st.number_input(fluid+' '+label, value=None, key=prefix+key)
                     if value is not None: qc[key] = value
-                if qc: measurements[fluid] = qc
-            st.caption('No measurements are predicted. Full rheology/thickening/compressive/API admission and configured Spacer context are NOT_VERIFIABLE here.')
+                rheology = {}
+                for dataset, label in catalog['lab']['datasets']:
+                    selected = st.checkbox(fluid+' '+label+' measured dataset', key=prefix+dataset+':selected')
+                    rheology[dataset] = {'selected': selected}
+                    if selected:
+                        rheology[dataset]['readings'] = {str(rpm): st.number_input(fluid+' '+label+f' {rpm} RPM', value=None,
+                            key=prefix+dataset+':'+str(rpm)) for rpm in catalog['lab']['rpm_order']}
+                        for field, text in (('gel_10_sec', 'Gel 10 sec'), ('gel_10_min', 'Gel 10 min')):
+                            rheology[dataset][field] = st.text_input(fluid+' '+label+' '+text+" (number or '-')", key=prefix+dataset+':'+field)
+                if any(r['selected'] for r in rheology.values()): qc['rheology'] = rheology
+                groups = {}; lab_groups[fluid] = groups
+                if fluid in catalog['lab']['ordinary_roles']:
+                    groups['filtrate'] = st.checkbox(fluid+' independent measured API filtrate', key=prefix+'filtrate:selected')
+                    if groups['filtrate']: qc['api_fl'] = st.number_input(fluid+' Filtrate at 30 min (ml)', value=None, key=prefix+'api_fl')
+                    groups['thickening'] = st.checkbox(fluid+' independent thickening test', key=prefix+'thickening:selected')
+                    if groups['thickening']:
+                        for field, label, kind in catalog['lab']['thickening_fields']:
+                            value = (st.number_input(fluid+' Thickening '+label, value=None, key=prefix+field) if kind == 'number'
+                                else st.text_input(fluid+' Thickening '+label+' (HH:MM)', key=prefix+field))
+                            if field != 'thickening_enter_time' or value: qc[field] = value
+                    compressive = {}
+                    for test, fields in catalog['lab']['compressive_fields'].items():
+                        selected = st.checkbox(fluid+' measured '+test.upper()+' compressive test', key=prefix+test+':selected')
+                        compressive[test] = {'selected': selected}
+                        if selected:
+                            for field, label in fields:
+                                compressive[test][field] = st.number_input(fluid+' '+test.upper()+' '+label, value=None, key=prefix+test+':'+field)
+                    if any(r['selected'] for r in compressive.values()): qc['compressive'] = compressive
+                measurements[fluid] = qc
+            lab_confirmed = st.checkbox('I confirm these independent Lab reference inputs (not Word approval)',
+                key='lab-confirmed:'+report.digest({'job':job,'mud':mud,'active':active,'conditions':conditions,
+                    'measurements':measurements,'cement':cop,'fluids':fop}))
+            st.caption('Observations are independent; PV/YP and admitted API/strength use original source functions. Automatic 600-mL recipe masses are not measurements. CT/stage and unsupported Word roles remain NOT_VERIFIABLE; this is not historical review or program approval.')
     lop = None
     if lab_on and job and active and (conditions or measurements or cop):
-        lop = {'job_type': job, 'mud_type': mud, 'active_fluids': active, 'conditions': conditions, 'measurements': measurements}
+        lop = {'job_type': job, 'mud_type': mud, 'active_fluids': active, 'conditions': conditions, 'measurements': measurements, 'confirmed': lab_confirmed}
         if cop: lop['cement_operator'] = cop
+        if fop is not None and spacer_config is not None: lop['spacer_operator'] = fop
     with st.expander('Independently approved Executive Summary text (C08)'):
         text = st.text_area('Independent approved summary reference', key=f'summary:{job}')
         approval = st.text_input('Independent approval reference', key=f'approval:{job}')
@@ -151,6 +187,7 @@ def main():
     draft = {'job': job, 'mud': mud, 'active': active, 'fluid_inputs': fluid_inputs, 'slurries': slurries,
         'hardware_on': hardware_on, 'hardware': hardware, 'lab_on': lab_on, 'conditions': conditions,
         'measurements': measurements, 'measured_fluid': measured_fluid, 'neat_confirmations':neat_confirmations,
+        'measured_fluids': measured_fluids, 'lab_confirmed': lab_confirmed, 'lab_groups': lab_groups,
         'summary_text': text, 'approval': approval, 'confirmed': confirmed, 'procedure': procedure,
         'standalone_spacer': spacer_context}
     raw = upload.getvalue() if upload else b''
