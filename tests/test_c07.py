@@ -264,3 +264,40 @@ def test_cli_determinism_original_bytes_and_identity_guards(case):
     from tools.provision import verify_candidate
     from tools.ci import source_proof
     verify_candidate(ROOT);assert source_proof()['verified_files']==143
+
+
+@pytest.mark.parametrize('mutation',['boolean-reading','nonfinite-gel','missing-gel','missing-uca','missing-thickening','missing-free-water','bhct-above-bhst'])
+def test_r2d_selected_incomplete_or_invalid_measurements_are_not_recipes(mutation):
+    op=operator();qc=op['measurements']['Main']
+    if mutation=='boolean-reading':qc['rheology']['surface_down']['readings']['300']=True
+    if mutation=='nonfinite-gel':qc['rheology']['surface_down']['gel_10_min']=float('inf')
+    if mutation=='missing-gel':qc['rheology']['surface_down'].pop('gel_10_sec')
+    if mutation=='missing-uca':qc['compressive']['uca'].pop('cs_8')
+    if mutation=='missing-thickening':qc.pop('thickening_30_bc')
+    if mutation=='missing-free-water':qc.pop('free_water_45')
+    if mutation=='bhct-above-bhst':op['conditions']['bhct']=op['conditions']['bhst']+1
+    with pytest.raises(ValueError):request('lab',op)
+
+
+def test_r2d_recipe_without_measurements_never_authenticates_observations(case, monkeypatch):
+    p,original,_=case;op=deepcopy(original);op['measurements']={};op['confirmed']=False
+    source=request('lab',op);monkeypatch.setattr('c07_lab.request',lambda *a,**k:source)
+    result=compare_document(p,op);recipe=[f for f in result['findings'] if f['reference_kind']=='AUTOMATIC_SOURCE_FORMULATION']
+    assert recipe and all(f['result']=='MATCH' for f in recipe)
+    measured=[f for f in result['findings'] if f['reference_kind']!='AUTOMATIC_SOURCE_FORMULATION']
+    assert all(f['result']=='NOT_VERIFIABLE' for f in measured)
+    assert not source['reference']['fluids']['Main']['payload_admitted']
+
+
+def test_r2d_moved_condition_table_and_duplicate_recipe_are_unverified(case, monkeypatch):
+    p,op,source=case;monkeypatch.setattr('c07_lab.request',lambda *a,**k:source)
+    with tempfile.TemporaryDirectory(dir=ROOT/'tmp',prefix='r2d-physical-') as folder:
+        doc=Document(p);basic=next(t for t in doc.tables if t.cell(0,0).text.strip()=='Test Basic Data')
+        heading=doc.add_paragraph('Tail Cement Slurry Results');basic._tbl.addprevious(heading._p)
+        reset=doc.add_paragraph('Main Cement Slurry Results');basic._tbl.addnext(reset._p)
+        conventional=next(t for t in doc.tables if t.cell(0,0).text.strip()=='Conventional')
+        conventional._tbl.addnext(deepcopy(conventional._tbl))
+        target=Path(folder)/'moved.docx';doc.save(target);result=compare_document(target,op)
+        assert field(result,'lab.condition.bhct')['result']=='NOT_VERIFIABLE'
+        assert field(result,'lab.thickening_time')['result']=='NOT_VERIFIABLE'
+        assert all(f['result']=='NOT_VERIFIABLE' for f in result['findings'] if f['field']=='lab.recipe_mass')

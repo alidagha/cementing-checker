@@ -770,7 +770,36 @@ class PrivateSession:
             if submitted.get(key) is None:
                 availability[name] = 'NOT_RUN / NOT_VERIFIABLE: independent section inputs incomplete or not selected.'
                 continue
-            result = compare(path, submitted[key]); results[name] = result
+            lab_reason = None
+            if name == 'C07':
+                lop = submitted[key]
+                if (type(lop) is not dict or lop.get('job_type') != submitted['job_type']
+                        or lop.get('mud_type', 'WBM') != submitted['mud_type']
+                        or lop.get('active_fluids') != submitted['active_fluids']):
+                    lab_reason = 'Lab job, mud and active identities must match this run'
+                elif 'cement_operator' in lop and (admission['status'] != 'SOURCE_ADMITTED'
+                        or digest(lop['cement_operator']) != digest(cop)):
+                    lab_reason = 'Lab recipe requires the exact current source-admitted C02 operator'
+                elif 'spacer_operator' in lop and (not spacer_admission
+                        or spacer_admission['status'] != 'SOURCE_ADMITTED'
+                        or digest(lop['spacer_operator']) != digest(fop)):
+                    lab_reason = 'Spacer sample requires the exact current source-admitted configured C05 operator'
+                elif widget_snapshot is not None and 'lab_confirmed' in widget_snapshot:
+                    if (widget_snapshot.get('lab_on') is not True
+                            or digest(lop.get('measurements')) != digest(widget_snapshot.get('measurements'))
+                            or digest(lop.get('conditions', {})) != digest(widget_snapshot.get('conditions'))
+                            or type(lop.get('confirmed', False)) is not bool
+                            or lop.get('confirmed', False) != widget_snapshot['lab_confirmed']
+                            or set(lop.get('measurements', {})) != set(widget_snapshot.get('measured_fluids', []))):
+                        lab_reason = 'Lab observations and confirmation must match the committed independent draft'
+            result = ({'status':'INPUT_REJECTED','reason':lab_reason,'findings':[]} if lab_reason
+                      else compare(path, submitted[key]))
+            results[name] = result
+            if name == 'C07' and result['status'] == 'PARTIAL_FINDINGS_ONLY':
+                source = result['reference']
+                if (source['source_sha'] != pins['source_sha'] or source['operator_input_sha256'] != digest(submitted[key])
+                        or source['reference']['template_sha256'] != pins['template_sha256']):
+                    raise Refusal('C07 source/operator/template identity is unproved')
             if name == 'C05' and type(fop) is dict and fop.get('standalone_spacer') is not None:
                 if result['status'] == 'PARTIAL_FINDINGS_ONLY':
                     source = result['reference']
@@ -848,6 +877,13 @@ class PrivateSession:
             'sacks_findings':[f for f in results.get('C03',{}).get('c02',{}).get('findings',[]) if f['field']=='sacks']}
         if spacer_admission is not None:
             report['receipt']['standalone_spacer_admission'] = spacer_admission
+        if 'C07' in results:
+            lab_result = results['C07']
+            report['receipt']['lab_admission'] = {
+                'status': 'SOURCE_ADMITTED_PARTIAL_REFERENCE' if lab_result['status'] == 'PARTIAL_FINDINGS_ONLY' else 'INPUT_REJECTED',
+                'operator_sha256': digest(submitted['lab']),
+                'payload_admitted_by_fluid': {fluid: item['payload_admitted'] for fluid, item in
+                    lab_result.get('reference', {}).get('reference', {}).get('fluids', {}).items()}}
         report['message']=engineer_message(report)
         report['report_id']=report_identity(report);report['receipt']['report_id']=report['report_id']
         receipt_path=self.folder/('run-'+report['receipt']['run_id']+'.json')
@@ -949,6 +985,7 @@ if __name__ == '__main__' and sys.argv[1:] == ['--catalog']:
     import materials_db as db
     import project_state
     import standalone_spacer
+    import engineering_tools, rheology
     import placement, well_profile, cement_chart_model
     from narrative_source import summary_reference
     # These validators expose no public enum constants; read their locked literals.
@@ -960,6 +997,10 @@ if __name__ == '__main__' and sys.argv[1:] == ['--catalog']:
         'eligible': {job: {mud: project_state.available_fluid_types({'job_type': job, 'mud_type': mud}) for mud in ('WBM', 'OBM')} for job in db.JOB_TYPES},
         'standalone_spacer': {'modes': list(standalone_spacer.MODES),
             'tanks': {job: db.get_available_tanks(job) for job in db.JOB_TYPES}},
+        'lab': {'roles': [*db.PHASE7_LAB_FLUIDS, 'Spacer'], 'ordinary_roles': list(db.PLACEMENT_SLURRIES),
+            'datasets': list(rheology.RHEOLOGY_DATASETS), 'rpm_order': list(rheology.RPM_ORDER),
+            'thickening_fields': list(engineering_tools.THICKENING_TEST_FIELDS),
+            'compressive_fields': engineering_tools.COMPRESSIVE_TEST_FIELDS},
         'procedure': {'jobs': [job for job, kind in cement_chart_model.CHART_JOBS.items() if kind == 'casing'],
             'roles': db.PLACEMENT_SLURRIES, 'tanks': {job: db.get_available_tanks(job) for job in db.JOB_TYPES},
             'well_types': [v for v in choices(well_profile.validate_well_inputs, 'Vertical') if v is not None],
