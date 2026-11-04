@@ -117,6 +117,46 @@ def standalone_spacer_input(inputs, context, source_catalog):
                     'reason': 'Original C05 validation runs on explicit Run Check; no formulation credited yet'}
 
 
+def well_input(inputs, hardware, context, source_catalog, choices=None):
+    """Bind optional source schemas; source C06 still owns validation/calculation."""
+    status = {}
+    if (not inputs.get('job_type') or not hardware or any('Description' not in r or 'MD (m)' not in r for r in hardware)):
+        return None, {'hardware':'INPUT_INCOMPLETE'}
+    job=inputs['job_type']; hop={'job_type':job,'hardware':hardware}; options=source_catalog['well']
+    if context.get('geothermal_selected'):
+        geo=context.get('well_geometry',{}); temp=context.get('geothermal_config',{})
+        if (set(geo)-{'version','type','td_m'} or set(temp)-{'version','source','surface_temp','value'}
+                or geo.get('type') not in (None,*options['types'])):
+            status['geothermal']='NOT_VERIFIABLE: only explicit Vertical inputs; Survey excluded'
+        elif any(v is None for v in (geo.get('type'),geo.get('td_m'),temp.get('source'),temp.get('surface_temp'),temp.get('value'))):
+            status['geothermal']='INPUT_INCOMPLETE'
+        elif (geo.get('version')!=options['geometry_version'] or temp.get('version')!=options['geothermal_version']
+                or temp['source'] not in options['temperature_sources']
+                or any(type(v) not in (int,float) or not math.isfinite(v) for v in (geo['td_m'],temp['surface_temp'],temp['value']))):
+            status['geothermal']='INPUT_REJECTED'
+        else:
+            hop.update(well_geometry=geo,geothermal_config=temp);status['geothermal']='SOURCE_VALIDATION_REQUIRED'
+    if context.get('placement_selected'):
+        config=context.get('placement_config',{}); target=config.get('target_row'); kind=options['chart_jobs'].get(job)
+        candidates=choices['source']['reference']['source_hardware_choices'] if choices else {}
+        if kind is None:status['placement']='NOT_VERIFIABLE: source chart excludes this job'
+        elif context.get('well_geometry',{}).get('type')!='Vertical' or 'survey' in context.get('well_geometry',{}):
+            status['placement']='NOT_VERIFIABLE: explicit independent Vertical designation required; Survey excluded'
+        elif config.get('job_type')!=job or set(config)-set(options['placement_fields']):status['placement']='INPUT_REJECTED'
+        elif target is None or config.get('chart_excess_mode') is None or target==source_catalog['procedure']['manual_target'] and config.get('manual_depth_m') is None or kind=='tieback' and config.get('host_row') is None:
+            status['placement']='INPUT_INCOMPLETE'
+        elif (config['chart_excess_mode'] not in source_catalog['procedure']['excess_modes']
+                or target!=source_catalog['procedure']['manual_target'] and (target not in candidates or candidates[target]['description'] not in options['target_descriptions'][job])
+                or config.get('host_row') is not None and config['host_row'] not in candidates):
+            status['placement']='INPUT_REJECTED: current source-issued target/host required'
+        else:hop['placement_config']=config;status['placement']='SOURCE_VALIDATION_REQUIRED / INFORMATIONAL ONLY'
+    if context.get('fluids_selected'):
+        fop=inputs.get('fluids')
+        if fop is None:status['fluids']='INPUT_INCOMPLETE'
+        else:hop.update(fluids=fop['fluids'],mud_type=inputs['mud_type']);status['fluids']='CURRENT_C05_ADMISSION_REQUIRED'
+    return hop,status
+
+
 def procedure_input(inputs, context, source_catalog):
     """Bind the optional UI subset to existing independent adapter inputs."""
     if not context.get('selected'):
@@ -205,6 +245,7 @@ class PrivateSession:
         self.volume_request_sha = None
         self.dv_preview = None
         self.dv_request_sha = None
+        self.well_choices = None
         self._clear_copy()
 
     @locked
@@ -219,6 +260,39 @@ class PrivateSession:
                 or self.folder.is_symlink() or self.folder.stat().st_mode & 0o077):
             raise Refusal('Private session directory unavailable')
         identities()
+
+    @locked
+    def inspect_hardware_choices(self, job, hardware):
+        self.folder_check();self.well_choices=None
+        from engineering_source import request
+        operator=json.loads(json.dumps({'job_type':job,'hardware':hardware},allow_nan=False))
+        pins=identities();source=request('well',operator)
+        if (source['source_sha']!=pins['source_sha'] or source['operator_input_sha256']!=digest(operator)
+                or digest(source['reference']['hardware'])!=digest(operator['hardware']) or identities()!=pins):
+            raise Refusal('Hardware choice source identity rejected')
+        value={'session_id':self.session_id,'operator':operator,'pins':pins,'source':source}
+        value['choice_id']=digest(value)
+        file=self.folder/('well-choices-'+value['choice_id']+'.json')
+        if not file.exists():
+            fd=os.open(file,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
+            with os.fdopen(fd,'w') as out:json.dump(value,out,allow_nan=False)
+        self.well_choices=value
+        return self.current_hardware_choices(job,hardware)
+
+    @locked
+    def current_hardware_choices(self, job, hardware):
+        self.folder_check();value=self.well_choices
+        if value is None:return None
+        key=value.get('choice_id');expected={k:v for k,v in value.items() if k!='choice_id'}
+        if (type(key) is not str or len(key)!=64 or any(c not in '0123456789abcdef' for c in key)
+                or value['session_id']!=self.session_id or value['pins']!=identities()
+                or digest(value['operator'])!=digest({'job_type':job,'hardware':hardware})
+                or digest(expected)!=key):
+            self.well_choices=None;return None
+        file=self.folder/('well-choices-'+key+'.json')
+        if file.is_symlink() or file.stat().st_mode&0o077 or json.loads(file.read_text())!=value:
+            self.well_choices=None;raise Refusal('Hardware choice receipt rejected')
+        return value
 
     @locked
     def invalidate(self, revision):
@@ -771,6 +845,37 @@ class PrivateSession:
                 availability[name] = 'NOT_RUN / NOT_VERIFIABLE: independent section inputs incomplete or not selected.'
                 continue
             lab_reason = None
+            if name == 'C06':
+                hop=submitted[key]
+                if type(hop) is not dict or hop.get('job_type')!=submitted['job_type']:
+                    lab_reason='C06 job must match the current independent selection'
+                elif 'well_geometry' in hop and (hop['well_geometry'].get('type')!='Vertical' or 'survey' in hop['well_geometry']):
+                    lab_reason='C06 intake is Vertical only; Survey and directional geometry are excluded'
+                elif 'placement_config' in hop and self.source_catalog['well']['chart_jobs'].get(submitted['job_type']) is None:
+                    lab_reason='No source chart mapping for this job; no casing substitution'
+                elif 'placement_config' in hop and (hop.get('well_geometry',{}).get('type')!='Vertical'
+                        and (widget_snapshot or {}).get('well_context',{}).get('well_geometry',{}).get('type')!='Vertical'):
+                    lab_reason='Explicit independent Vertical designation required for placement; no directional assumption'
+                elif 'fluids' in hop:
+                    c05=results.get('C05',{});ref=c05.get('reference',{})
+                    if (c05.get('status')!='PARTIAL_FINDINGS_ONLY' or type(fop) is not dict
+                            or fop.get('job_type')!=submitted['job_type'] or fop.get('mud_type','WBM')!=submitted['mud_type']
+                            or hop.get('mud_type','WBM')!=submitted['mud_type'] or set(fop['fluids'])!=set(submitted['active_fluids'])
+                            or digest(hop['fluids'])!=digest(fop['fluids']) or ref.get('source_sha')!=pins['source_sha']
+                            or ref.get('operator_input_sha256')!=digest(fop)):
+                        lab_reason='C06 volume projection requires the exact current source-admitted C05 fluids'
+                if not lab_reason and type(hop) is dict and 'placement_config' in hop:
+                    config=hop['placement_config'];token=config.get('target_row');host=config.get('host_row')
+                    if token not in (None,self.source_catalog['procedure']['manual_target']) or host is not None:
+                        choice=self.current_hardware_choices(submitted['job_type'],hop['hardware'])
+                        allowed=choice['source']['reference']['source_hardware_choices'] if choice else {}
+                        if (token!=self.source_catalog['procedure']['manual_target'] and token not in allowed or host is not None and host not in allowed):
+                            lab_reason='Current source-issued Hardware target/host inspection required'
+                if not lab_reason and widget_snapshot is not None and 'well_context' in widget_snapshot:
+                    rows=widget_snapshot.get('hardware',[]);choice=self.current_hardware_choices(submitted['job_type'],rows)
+                    expected,_=well_input(submitted,rows,widget_snapshot['well_context'],self.source_catalog,choice)
+                    if widget_snapshot.get('hardware_on') is not True or digest(hop)!=digest(expected):
+                        lab_reason='C06 operator must match the complete committed Hardware/Well draft'
             if name == 'C07':
                 lop = submitted[key]
                 if (type(lop) is not dict or lop.get('job_type') != submitted['job_type']
@@ -795,6 +900,14 @@ class PrivateSession:
             result = ({'status':'INPUT_REJECTED','reason':lab_reason,'findings':[]} if lab_reason
                       else compare(path, submitted[key]))
             results[name] = result
+            if name == 'C06' and result['status']=='PARTIAL_FINDINGS_ONLY':
+                source=result['reference'];geometry=source['reference']['geometry']
+                claims=[f for f in result['findings'] if f['field']=='geometry.reference']
+                if (source['source_sha']!=pins['source_sha'] or source['operator_input_sha256']!=digest(submitted[key])
+                        or digest(source['reference']['hardware'])!=digest(submitted[key]['hardware'])
+                        or len(claims)!=1 or claims[0]['result']!=geometry['status']
+                        or geometry['status'] not in ('INFORMATIONAL','NOT_VERIFIABLE')):
+                    raise Refusal('C06 source/input identity or informational geometry is unproved')
             if name == 'C07' and result['status'] == 'PARTIAL_FINDINGS_ONLY':
                 source = result['reference']
                 if (source['source_sha'] != pins['source_sha'] or source['operator_input_sha256'] != digest(submitted[key])
@@ -884,6 +997,11 @@ class PrivateSession:
                 'operator_sha256': digest(submitted['lab']),
                 'payload_admitted_by_fluid': {fluid: item['payload_admitted'] for fluid, item in
                     lab_result.get('reference', {}).get('reference', {}).get('fluids', {}).items()}}
+        if 'C06' in results:
+            result=results['C06']
+            report['receipt']['well_admission']={'status':'SOURCE_ADMITTED_PARTIAL_REFERENCE' if result['status']=='PARTIAL_FINDINGS_ONLY' else 'INPUT_REJECTED',
+                'operator_sha256':digest(submitted['hardware']),
+                'geometry_status':result.get('reference',{}).get('reference',{}).get('geometry',{}).get('status','NOT_RUN')}
         report['message']=engineer_message(report)
         report['report_id']=report_identity(report);report['receipt']['report_id']=report['report_id']
         receipt_path=self.folder/('run-'+report['receipt']['run_id']+'.json')
@@ -994,6 +1112,13 @@ if __name__ == '__main__' and sys.argv[1:] == ['--catalog']:
     print(json.dumps({'jobs': db.JOB_TYPES, 'order': db.HYDRAULIC_EXECUTION_ORDER,
         'cement_roles': db.CEMENT_FORMULATION_FLUIDS, 'cement_names': [name for name in db.CEMENT_SG_REFERENCE],
         'hardware_fields': HARDWARE_FIELDS, 'hardware_descriptions': db.HARDWARE_DESCRIPTIONS,
+        'well': {'types':[v for v in choices(well_profile.validate_well_inputs,'Vertical') if v=='Vertical'],
+            'geometry_version':well_profile.geometry_defaults()['version'], 'geothermal_version':well_profile.geothermal_defaults()['version'],
+            'temperature_sources':[v for v in choices(well_profile.validate_well_inputs,'BHST') if v is not None],
+            'chart_jobs':cement_chart_model.CHART_JOBS,
+            'target_descriptions':{job:sorted(placement.target_descriptions(job)) for job in db.JOB_TYPES},
+            'descriptions_by_job':{job:list(db.HARDWARE_DESCRIPTIONS)+sorted(placement.target_descriptions(job)-set(db.HARDWARE_DESCRIPTIONS)) if job==db.CT_JOB else list(db.HARDWARE_DESCRIPTIONS) for job in db.JOB_TYPES},
+            'placement_fields':['job_type','target_row','manual_depth_m','chart_excess_mode',*(f for f,_,_ in placement.EXCESS_FIELDS),'host_row','tie_back_liner_lap_m']},
         'eligible': {job: {mud: project_state.available_fluid_types({'job_type': job, 'mud_type': mud}) for mud in ('WBM', 'OBM')} for job in db.JOB_TYPES},
         'standalone_spacer': {'modes': list(standalone_spacer.MODES),
             'tanks': {job: db.get_available_tanks(job) for job in db.JOB_TYPES}},

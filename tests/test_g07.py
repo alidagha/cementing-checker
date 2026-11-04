@@ -1169,3 +1169,150 @@ def test_r2d_ui_measured_groups_confirmation_and_invalidation(r2d_lab_control, m
         assert app.session_state['_private'].result is None and not box(app,'I confirm these independent Lab reference inputs (not Word approval)').value
         assert app.session_state['_private'].document.read_bytes()==raw
     finally:config.set_option('browser.gatherUsageStats',previous)
+
+
+@pytest.fixture(scope='module')
+def r2e_well_control():
+    from test_c06 import operator
+    from engineering_source import request
+    op=operator()
+    with tempfile.TemporaryDirectory(dir=g.ROOT/'tmp',prefix='r2e-well-') as folder:
+        path=Path(folder)/'synthetic.docx';source=request('render_well',op,docx=str(path))
+        yield path.read_bytes(),op,source
+
+
+def r2e_inputs(op):
+    cop={'job_type':op['job_type'],'active_fluids':['Main'],'slurries':{'Main':{'client_volume_bbl':50.0,
+        'density_pcf':118.0,'base_cement':'Cement G Delijan','cement_sg':3.2,'additives':[]}}}
+    inputs=submitted(cop);inputs['fluids']={'job_type':op['job_type'],'mud_type':'WBM','fluids':deepcopy(op['fluids'])}
+    inputs['hardware']=deepcopy(op)
+    return inputs
+
+
+def test_r2e_crossed_C05_volume_never_reaches_C06(r2e_well_control,monkeypatch):
+    raw,op,_=r2e_well_control;inputs=r2e_inputs(op);inputs['hardware']['fluids']['Main']['volume']=51
+    import c06_well
+    monkeypatch.setattr(c06_well,'compare_document',lambda *a,**k:pytest.fail('Crossed C05 volume reached C06'))
+    s=g.PrivateSession();p=s.store('synthetic.docx',raw);r=s.check(p,inputs)
+    assert r['results']['C06']['status']=='INPUT_REJECTED' and 'C06' not in r['completed_adapters']
+    assert 'C05' in r['completed_adapters'] and p.read_bytes()==raw
+
+
+def r2e_draft(op):
+    return {'hardware_on':True,'hardware':deepcopy(op['hardware']),'well_context':{
+        'geothermal_selected':True,'well_geometry':deepcopy(op['well_geometry']),
+        'geothermal_config':deepcopy(op['geothermal_config']),'placement_selected':True,
+        'placement_config':deepcopy(op['placement_config']),'fluids_selected':True}}
+
+
+def test_r2e_frozen_source_receipt_and_informational_capacity(r2e_well_control):
+    raw,op,_=r2e_well_control;inputs=r2e_inputs(op);inputs['hardware']['mud_type']='WBM';draft=r2e_draft(op)
+    s=g.PrivateSession();p=s.store('synthetic.docx',raw);r=s.check(p,inputs,draft=draft)
+    assert r['receipt']['well_admission']=={'status':'SOURCE_ADMITTED_PARTIAL_REFERENCE','operator_sha256':g.digest(inputs['hardware']),'geometry_status':'INFORMATIONAL'}
+    ref=r['results']['C06']['reference'];assert ref['operator_input_sha256']==g.digest(inputs['hardware'])
+    assert ref['reference']['geometry']['client_requested_volumes_bbl']=={'Main':50}
+    assert ref['reference']['geometry']['full_annular_capacity_bbl']>50
+    geometry=next(f for f in r['results']['C06']['findings'] if f['field']=='geometry.reference')
+    assert geometry['result']=='INFORMATIONAL' and geometry['locator'] is None
+    assert r['receipt']['widget_snapshot']==draft and p.read_bytes()==raw
+    changed=deepcopy(draft);changed['hardware'][0]['MD (m)']='1001'
+    assert s.invalidate(g.digest(changed)) and s.current() is None and s.copy_output is s.volume_preview is s.dv_preview is None
+
+
+@pytest.mark.parametrize('mutation',['job','rows','volume-type','active','directional','survey','ineligible-chart'])
+def test_r2e_crossed_rows_volume_and_excluded_context_never_transport(r2e_well_control,monkeypatch,mutation):
+    raw,op,_=r2e_well_control;inputs=r2e_inputs(op);inputs['hardware']['mud_type']='WBM';draft=r2e_draft(op)
+    if mutation=='job':inputs['hardware']['job_type']='CMT PLUG'
+    if mutation=='rows':inputs['hardware']['hardware'][0]['MD (m)']='1001'
+    if mutation=='volume-type':inputs['hardware']['fluids']['Main']['volume']=50.0
+    if mutation=='active':inputs['hardware']['fluids']={'Tail':inputs['hardware']['fluids']['Main']}
+    if mutation=='directional':inputs['hardware']['well_geometry']['type']='Directional'
+    if mutation=='survey':inputs['hardware']['well_geometry']['survey']=[]
+    if mutation=='ineligible-chart':
+        inputs['job_type']='CMT PLUG';inputs['cement']['job_type']='CMT PLUG';inputs['fluids']['job_type']='CMT PLUG';inputs['hardware']['job_type']='CMT PLUG'
+    import c06_well
+    monkeypatch.setattr(c06_well,'compare_document',lambda *a,**k:pytest.fail('Unbound C06 operator reached transport'))
+    s=g.PrivateSession();p=s.store('synthetic.docx',raw);r=s.check(p,inputs,draft=draft)
+    assert r['results']['C06']['status']=='INPUT_REJECTED' and 'C06' not in r['completed_adapters'] and p.read_bytes()==raw
+
+
+@pytest.mark.parametrize('missing',['type','td_m','source','surface_temp','value'])
+def test_r2e_incomplete_optional_profile_keeps_hardware(r2e_well_control,missing):
+    _,op,_=r2e_well_control;inputs=r2e_inputs(op);ctx=r2e_draft(op)['well_context'];ctx['placement_selected']=False;ctx['fluids_selected']=False
+    ctx['well_geometry' if missing in ('type','td_m') else 'geothermal_config'][missing]=None
+    hop,status=g.well_input(inputs,op['hardware'],ctx,g.catalog())
+    assert status['geothermal']=='INPUT_INCOMPLETE' and hop=={'job_type':op['job_type'],'hardware':op['hardware']}
+
+
+def test_r2e_source_choice_receipt_no_stale_forged_or_foreign_reuse(r2e_well_control):
+    _,op,_=r2e_well_control;s=g.PrivateSession();proof=s.inspect_hardware_choices(op['job_type'],op['hardware'])
+    assert proof['source']['operator_input_sha256']==g.digest({'job_type':op['job_type'],'hardware':op['hardware']})
+    assert proof['source']['reference']['source_hardware_choices'] and s.current_hardware_choices(op['job_type'],op['hardware'])==proof
+    other=g.PrivateSession();other.well_choices=deepcopy(proof)
+    assert other.current_hardware_choices(op['job_type'],op['hardware']) is None
+    s.well_choices=deepcopy(proof);s.well_choices['source']['reference']['source_hardware_choices']={}
+    assert s.current_hardware_choices(op['job_type'],op['hardware']) is None
+    s.well_choices=deepcopy(proof);rows=deepcopy(op['hardware']);rows[0]['MD (m)']='1001'
+    assert s.current_hardware_choices(op['job_type'],rows) is None
+
+
+@pytest.mark.parametrize('mutation',['operator','source','informational'])
+def test_r2e_source_response_and_geometry_cannot_be_promoted(r2e_well_control,monkeypatch,mutation):
+    raw,op,_=r2e_well_control;inputs=r2e_inputs(op)
+    import c06_well
+    real=c06_well.compare_document
+    def swapped(*a,**k):
+        result=real(*a,**k)
+        if mutation=='informational':next(f for f in result['findings'] if f['field']=='geometry.reference')['result']='MATCH'
+        else:result['reference']['operator_input_sha256' if mutation=='operator' else 'source_sha']='0'*64
+        return result
+    monkeypatch.setattr(c06_well,'compare_document',swapped)
+    s=g.PrivateSession();p=s.store('synthetic.docx',raw)
+    with pytest.raises(ValueError,match='C06'):s.check(p,inputs)
+    assert s.current() is None and s.copy_output is None and p.read_bytes()==raw
+
+
+def test_r2e_source_host_tokens_and_nonvertical_scope_are_explicit(r2e_well_control):
+    _,op,_=r2e_well_control;s=g.PrivateSession();proof=s.inspect_hardware_choices(op['job_type'],op['hardware']);ctx=r2e_draft(op)['well_context'];inputs=r2e_inputs(op)
+    token=next(k for k,v in proof['source']['reference']['source_hardware_choices'].items() if v['description']=='Casing')
+    ctx['placement_config']['target_row']=token;hop,status=g.well_input(inputs,op['hardware'],ctx,s.source_catalog,proof)
+    assert hop['placement_config']['target_row']==token
+    ctx['well_geometry']['type']=None;hop,status=g.well_input(inputs,op['hardware'],ctx,s.source_catalog,proof)
+    assert 'placement_config' not in hop and status['placement'].startswith('NOT_VERIFIABLE')
+
+
+def test_r2e_ui_optional_profile_and_placement_are_typed(r2e_well_control,monkeypatch):
+    from io import BytesIO
+    import pandas as pd
+    import streamlit as st
+    from streamlit import config
+    from streamlit.testing.v1 import AppTest
+    raw,op,_=r2e_well_control;upload=BytesIO(raw);upload.name='synthetic.docx';rows=deepcopy(op['hardware'])
+    monkeypatch.setattr(st,'file_uploader',lambda *a,**k:upload);original_editor=st.data_editor;fields=g.catalog()['hardware_fields']
+    def editor(frame,*a,**k):return pd.DataFrame(rows,columns=frame.columns) if list(frame.columns)==fields else original_editor(frame,*a,**k)
+    monkeypatch.setattr(st,'data_editor',editor);previous=config.get_option('browser.gatherUsageStats')
+    def box(app,label):return next(w for w in app.checkbox if w.label==label)
+    try:
+        config.set_option('browser.gatherUsageStats',False);app=AppTest.from_file(str(g.ROOT/'checker_ui.py'),default_timeout=60).run()
+        app.selectbox(key='job').select(op['job_type']).run();app.selectbox(key='mud').select('WBM').run();app.multiselect(key='active:'+op['job_type']+':WBM').select('Spacer').run()
+        box(app,'Check independently entered hardware').check().run();prefix='c06:'+op['job_type']+':'
+        assert app.selectbox(key=prefix+'type').value is None and app.number_input(key=prefix+'td').value is None
+        box(app,'C06 check independent Vertical geothermal / temperature').check().run()
+        assert app.number_input(key=prefix+'surface').value is None
+        next(w for w in app.button if w.label=='Run Check').click().run(timeout=90)
+        r=app.session_state['_private'].current();assert r['results']['C06']['reference']['reference']['well'] is None
+        app.selectbox(key=prefix+'type').select('Vertical');app.number_input(key=prefix+'td').set_value(1000.0)
+        app.selectbox(key=prefix+'temp-source').select('BHST').run()
+        app.number_input(key=prefix+'surface').set_value(80.0);app.number_input(key=prefix+'temp-value').set_value(180.0)
+        box(app,'C06 check optional source placement / capacity (informational)').check().run()
+        app.selectbox(key=prefix+'target').select('__manual__').run();app.number_input(key=prefix+'target-md').set_value(1000.0)
+        app.selectbox(key=prefix+'excess').select('ignore').run()
+        next(w for w in app.button if w.label=='Run Check').click().run(timeout=90)
+        assert not app.exception;r=app.session_state['_private'].current();hop=r['receipt']['inputs_snapshot']['hardware']
+        assert hop['well_geometry']=={'version':1,'type':'Vertical','td_m':1000.0} and 'survey' not in hop['well_geometry']
+        assert hop['geothermal_config']['surface_temp']==80.0 and type(hop['geothermal_config']['surface_temp']) is float
+        assert r['receipt']['well_admission']['geometry_status']=='INFORMATIONAL'
+        assert r['results']['C06']['reference']['reference']['geometry']['client_requested_volumes_bbl']=={}
+        app.number_input(key=prefix+'td').set_value(1001.0).run();assert app.session_state['_private'].result is None
+        assert app.session_state['_private'].document.read_bytes()==raw
+    finally:config.set_option('browser.gatherUsageStats',previous)
