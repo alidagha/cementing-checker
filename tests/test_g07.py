@@ -1352,3 +1352,33 @@ def test_r2f_unavailable_C09_receipt_has_no_completed_stage_or_copy_claim(proced
     with pytest.raises(ValueError):other.current()
     s.invalidate('changed-independent-context');assert s.current() is s.copy_output is s.volume_preview is s.dv_preview is None
     assert path.read_bytes()==original
+
+
+def test_r2g2_grouped_atom_provenance_preserves_whole_and_conflicting_judgments():
+    whole={'field':'ordered_notes','section':'geothermal','slurry':None,'locator':{'body_block':9},
+        'result':'MATCH','raw_reported_text':'whole literal NOTE','source_wording':'whole literal NOTE',
+        'source_function':'original source','source_sha':'source-pin','source_document_sha256':'document-pin'}
+    atom=dict(whole,field='ordered_notes.density_conditions.atom',raw_reported_text='literal',source_wording='literal',
+        read_only=True,correction_eligible=False,independent_reference_sha256='current-reference',job_type='CSG 7"',
+        atom_proof={'character_span':[6,13],'measurement':False})
+    conflicting=dict(whole,result='NOT_VERIFIABLE',reason='Unproved overlapping association')
+    rows=g.findings_table({'C09':{'status':'PARTIAL_FINDINGS_ONLY','findings':[whole,atom,conflicting]}})
+    assert len(rows)==1 and len(rows[0]['Judgments'])==3
+    assert [j['finding'] for j in rows[0]['Judgments']]==[whole,atom,conflicting]
+    visible=rows[0]['Reason/locator']
+    assert all(value in visible for value in ['READ_ONLY_LITERAL_ATOM','WHOLE_PARAGRAPH_OR_SEQUENCE',
+        'current-reference','document-pin','source-pin','character_span'])
+    assert 'MATCH' in rows[0]['Status'] and 'NOT_VERIFIABLE' in rows[0]['Status']
+    blocked=dict(atom,result='NOT_VERIFIABLE',locator=None,atom_proof=None)
+    blocked_rows=g.findings_table({'C09':{'status':'NOT_VERIFIABLE','findings':[blocked]}})
+    assert any('UNPROVED_LITERAL_ATOM' in row['Reason/locator'] for row in blocked_rows)
+
+
+@pytest.mark.parametrize('adapter,read_only',[('C08',False),('C09',False),('C09',True)])
+def test_r2g2_narrative_evidence_never_suggests_numeric_replacement(adapter,read_only):
+    f={'field':'narrative-only','section':'procedure','result':'DISCREPANCY','locator':{'body_block':1},
+        'source_rounded_expected':'unproved replacement','unit':'unproved','read_only':read_only}
+    rows=g.findings_table({adapter:{'status':'PARTIAL_FINDINGS_ONLY','findings':[f]}})
+    rows[0]['Message eligible']=True
+    message=g.engineer_message({'rows':rows,'run_outcome':'PARTIAL_FINDINGS_ONLY','completed_adapters':[adapter]})
+    assert 'unproved replacement' not in message and 'No exact replacement' in message

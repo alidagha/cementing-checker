@@ -1,5 +1,6 @@
 """Official procedure/NOTE text and order only; every result remains partial."""
 import argparse
+import ast
 import hashlib
 import json
 from pathlib import Path
@@ -144,10 +145,89 @@ def stage_availability(operator, source, findings):
         'stages':stages,'role_stages':role_stages,'verified_production_claim_instances':0,'authentic_golden_status':'NOT_RUN'}
 
 
+def density_condition_atom(parsed, source, findings, document, operator):
+    """One source-owned literal argument, not numerical decomposition or editing."""
+    atom={'field':'ordered_notes.density_conditions.atom','section':None,'slurry':None,'locator':None,
+        'result':'NOT_VERIFIABLE','reason':'Source expression or unique literal Word span is unproved; whole NOTE evidence retained.',
+        'source_function':None,'source_wording':None,'raw_reported_text':None,'reported_state':'MISSING',
+        'unit':None,'full_precision_expected':None,'read_only':True,'correction_eligible':False,'atom_proof':None}
+    try:
+        from c02_engine import verify_source
+        from checker_parser import text_of
+        from docx import Document
+        from docx.oxml.ns import qn
+        from io import BytesIO
+        verify_source()
+        path=SNAPSHOT/'phase_10_procedure.py';source_bytes=path.read_bytes();file_sha=hashlib.sha256(source_bytes).hexdigest()
+        identity=hashlib.sha256(json.dumps(operator,sort_keys=True,allow_nan=False).encode()).hexdigest()
+        if (source.get('source_sha')!=SOURCE_SHA or source.get('operator_input_sha256')!=identity or
+                source.get('source_module_sha256',{}).get(path.name)!=file_sha):return atom
+        tree=ast.parse(source_bytes.decode('utf-8'))
+        function=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='build_ordered_notes')
+        def assignment(key):
+            matches=[n for n in function.body if isinstance(n,ast.Assign) and len(n.targets)==1 and
+                isinstance(n.targets[0],ast.Subscript) and isinstance(n.targets[0].value,ast.Name) and
+                n.targets[0].value.id=='notes' and isinstance(n.targets[0].slice,ast.Constant) and n.targets[0].slice.value==key]
+            if len(matches)!=1:raise ValueError('Source expression assignment is not unique')
+            return matches[0]
+        expression=assignment('note_densities');call=expression.value
+        if (not isinstance(call,ast.Call) or not isinstance(call.func,ast.Attribute) or call.func.attr!='next' or
+                not isinstance(call.func.value,ast.Name) or call.func.value.id!='counter' or len(call.args)!=1 or call.keywords or
+                not isinstance(call.args[0],ast.Constant) or not isinstance(call.args[0].value,str)):return atom
+        literal=call.args[0].value
+        # Follow the original all_notes construction, not a guessed NOTE number.
+        first=assignment('all_notes').value
+        while isinstance(first,ast.BinOp) and isinstance(first.op,ast.Add):first=first.left
+        if not isinstance(first,ast.List):return atom
+        keys=[n.slice.value for n in first.elts if isinstance(n,ast.Subscript) and isinstance(n.value,ast.Name) and
+            n.value.id=='notes' and isinstance(n.slice,ast.Constant)]
+        if len(keys)!=len(first.elts) or keys.count('note_densities')!=1:return atom
+        reference=source['reference'];full=reference['all_source_notes'][keys.index('note_densities')]
+        if not literal or not full.endswith(literal) or full.count(literal)!=1:return atom
+        template_bytes=(SNAPSHOT/'master_template.docx').read_bytes();template_sha=hashlib.sha256(template_bytes).hexdigest()
+        locked_template=next(item['sha256'] for item in json.loads((ROOT/'upstream.lock.json').read_text())['files']
+            if item['path']=='master_template.docx')
+        if template_sha!=locked_template:return atom
+        template=Document(BytesIO(template_bytes));token='{{ note_densities }}'
+        slots=[p for p in template.element.body if p.tag==qn('w:p') and token in text_of(p)]
+        if len(slots)!=1 or text_of(slots[0]).count(token)!=1:return atom
+        prefix,suffix=text_of(slots[0]).split(token)
+        if suffix:return atom
+        parents=[f for f in findings if f['field']=='ordered_notes' and f.get('source_wording')==prefix+full]
+        if len(parents)!=1:return atom
+        parent=parents[0]
+        if parent['result']!='MATCH' or parent.get('slurry') is not None or parent.get('raw_reported_text')!=prefix+full:return atom
+        paragraph=document.element.body[parent['locator']['body_block']];literal_paragraph(paragraph,document)
+        if any(child.tag not in (qn('w:pPr'),qn('w:r'),qn('w:proofErr')) for child in paragraph):return atom
+        if any(child.tag not in (qn('w:rPr'),qn('w:br'),qn('w:cr'),qn('w:t'))
+                for run in paragraph.findall(qn('w:r')) for child in run):return atom
+        texts=list(paragraph.iter(qn('w:t')))
+        if (len(texts)!=1 or texts[0].text!=full or texts[0].getparent().tag!=qn('w:r') or
+                texts[0].getparent().getparent()!=paragraph or text_of(texts[0].getparent())!=full or
+                text_of(paragraph)!=prefix+full):return atom
+        if sum(literal in r['raw_text'] for r in parsed['records'] if r['section']!='excluded')!=1:return atom
+        raw=parent['raw_reported_text'];start=len(raw)-len(literal);run=texts[0].getparent()
+        atom.update(section=parent['section'],locator=parent['locator'],original_source_order=parent['original_source_order'],
+            result='MATCH',reason='Read-only fixed source expression, named template field and one literal text node; no scalar or measurement credit.',
+            source_function='phase_10_procedure.py:build_ordered_notes.notes.note_densities',source_wording=literal,
+            raw_reported_text=raw[start:],reported_state='TEXT',independent_reference_sha256=identity,
+            job_type=operator['program']['job_type'],association_scope='GLOBAL_DENSITY_DISPLAY_CONVENTION_NOT_A_SLURRY',
+            atom_proof={'source_path':path.name,'source_symbol':'build_ordered_notes','source_line':expression.lineno,
+                'source_file_sha256':file_sha,'source_expression_sha256':hashlib.sha256(literal.encode()).hexdigest(),
+                'template_field':'note_densities','template_sha256':template_sha,
+                'template_xml_path':slots[0].getroottree().getpath(slots[0]),'character_span':[start,len(raw)],
+                'utf8_byte_span':[len(raw[:start].encode()),len(raw.encode())],
+                'run_index':list(paragraph.iter(qn('w:r'))).index(run),'run_character_span':[len(full)-len(literal),len(full)],
+                'text_node_xml_path':texts[0].getroottree().getpath(texts[0]),'measurement':False})
+    except (ValueError,KeyError,TypeError,OSError,StopIteration,IndexError):
+        pass
+    return atom
+
+
 def compare_document(path, operator):
     parsed=parse_docx(path)
     if parsed['status']=='REJECTED':return parsed
-    source={};findings=[]
+    source={};findings=[];document=None
     try:
         candidate=request(operator,'procedure')
         if (candidate.get('source_sha')!=SOURCE_SHA or candidate.get('operator_input_sha256')!=
@@ -160,7 +240,8 @@ def compare_document(path, operator):
         from io import BytesIO
         original=safe_input(path)
         if hashlib.sha256(original).hexdigest()!=parsed['source_document_sha256']:raise ValueError('Document drift')
-        notes=attributed_notes(parsed,reference['preparation'],Document(BytesIO(original)))
+        document=Document(BytesIO(original))
+        notes=attributed_notes(parsed,reference['preparation'],document)
         findings=sequence_findings(procedures,reference['expected_procedure_records'],'procedure',reference)
         findings+=sequence_findings(notes,reference['expected_note_records'],'ordered_notes',reference)
         for f in findings:f['independent_reference_sha256']=source['operator_input_sha256']
@@ -176,6 +257,8 @@ def compare_document(path, operator):
         if not findings:findings=[{'field':'procedure_and_notes','section':'procedure','slurry':None,'locator':None,
             'result':'NOT_VERIFIABLE','reason':'C09 independent reference/physical narrative is unavailable.',
             'source_function':None,'source_wording':None,'raw_reported_text':None}]
+    if source:
+        findings.append(density_condition_atom(parsed,source,findings,document,operator))
     result=finish(parsed,source,findings,[
         'PARTIAL_FINDINGS_ONLY; original C01R claims and all unresolved records remain indexed.',
         'Text/order equivalence is not engineering or full App export-readiness certification.',
