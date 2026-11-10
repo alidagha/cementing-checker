@@ -1057,12 +1057,21 @@ def findings_table(results, records=()):
     for judgments in groups.values():
         def values(key): return ' | '.join(dict.fromkeys(ascii_text(j['finding'].get(key)) for j in judgments))
         first = judgments[0]['finding']
+        provenance=[{'adapter':j['adapter'],'source_function':j['finding'].get('source_function'),
+            'source_sha':j['finding'].get('source_sha'),'document_sha256':j['finding'].get('source_document_sha256'),
+            'independent_reference_sha256':j['finding'].get('independent_reference_sha256'),
+            'job_type':j['finding'].get('job_type'),'unit':j['finding'].get('unit'),
+            'full_precision_expected':j['finding'].get('full_precision_expected'),
+            'granularity':'READ_ONLY_LITERAL_ATOM' if j['finding'].get('atom_proof') else
+                'UNPROVED_LITERAL_ATOM' if j['finding'].get('read_only') else 'WHOLE_PARAGRAPH_OR_SEQUENCE',
+            'atom_proof':j['finding'].get('atom_proof')} for j in judgments if j['adapter'] in ('C08','C09')]
         rows.append({'Section': values('section'), 'Fluid/Slurry': ' | '.join(dict.fromkeys(ascii_text(j['finding'].get('fluid') or j['finding'].get('slurry') or j['finding'].get('association')) for j in judgments)),
             'Field': values('field'), 'Word value': values('raw_reported_text'),
             'Expected/source value': ' | '.join(dict.fromkeys(ascii_text(j['finding'].get('source_rounded_expected', j['finding'].get('source_wording'))) for j in judgments)),
             'Delta/tolerance': ' | '.join(dict.fromkeys(ascii_text({'delta': j['finding'].get('delta'), 'tolerance': j['finding'].get('tolerance')}) for j in judgments)),
             'Status': ' | '.join(j['adapter']+': '+str(j['finding'].get('result', 'NOT_VERIFIABLE')) for j in judgments),
-            'Reason/locator': values('reason')+' '+ascii_text(first.get('locator')), 'Judgments': judgments})
+            'Reason/locator': values('reason')+' '+ascii_text(first.get('locator'))+(
+                ' Source/physical evidence: '+ascii_text(provenance) if provenance else ''), 'Judgments': judgments})
     return rows
 
 
@@ -1085,6 +1094,7 @@ def engineer_message(report):
     for row in flagged:
         if not row.get('Message eligible', False): continue
         judgments = row['Judgments']; findings = [j['finding'] for j in judgments]
+        if any(j['adapter'] in ('C08','C09') or j['finding'].get('read_only') for j in judgments):continue
         if not all(f.get('result') == 'DISCREPANCY' and f.get('locator') is not None
                 and f.get('source_rounded_expected') is not None for f in findings): continue
         expected = {ascii_text(f['source_rounded_expected']) for f in findings}

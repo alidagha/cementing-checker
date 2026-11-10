@@ -320,3 +320,129 @@ def test_r2f_squeeze_scope_is_not_inferred_from_candidate_Word():
     assert 'squeeze_scope' not in p['executive_summary_config']
     with pytest.raises(ValueError,match='Independent squeeze scope required'):
         request(op,'procedure')
+
+
+def test_r2g2_source_density_expression_has_physical_atomic_attribution(case):
+    import ast
+    from docx.oxml.ns import qn
+    from narrative_source import SNAPSHOT
+    p,op,source=case
+    tree=ast.parse((SNAPSHOT/'phase_10_procedure.py').read_text())
+    function=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='build_ordered_notes')
+    assignment=next(n for n in function.body if isinstance(n,ast.Assign) and
+        isinstance(n.targets[0],ast.Subscript) and isinstance(n.targets[0].slice,ast.Constant) and
+        n.targets[0].slice.value=='note_densities')
+    expression=ast.literal_eval(assignment.value.args[0])
+    full=source['reference']['all_source_notes'][1]
+    assert full.endswith(expression) and full.count(expression)==1
+    result=compare_document(p,op)
+    parent=next(f for f in result['findings'] if f['field']=='ordered_notes' and (f['source_wording'] or '').endswith(full))
+    assert parent['result']=='MATCH' and parent['slurry'] is None
+    paragraph=Document(p).element.body[parent['locator']['body_block']]
+    texts=list(paragraph.iter(qn('w:t')))
+    assert len(texts)==1 and texts[0].text==full
+    from checker_parser import text_of
+    templates=[node for node in Document(SNAPSHOT/'master_template.docx').element.body.iter(qn('w:p'))
+        if '{{ note_densities }}' in text_of(node)]
+    assert len(templates)==1
+    prefix,suffix=text_of(templates[0]).split('{{ note_densities }}')
+    assert suffix=='' and parent['raw_reported_text']==prefix+full
+    proof={'source_line':assignment.lineno,'source_expression_sha256':hashlib.sha256(expression.encode()).hexdigest(),
+        'source_document_sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'locator':parent['locator'],
+        'character_start':len(prefix+full)-len(expression),'character_end':len(prefix+full),'text_nodes':1}
+    (ROOT/'evidence'/('r2g2-expression-proof-'+proof['source_document_sha256']+'.json')).write_text(json.dumps(proof,indent=2))
+    atom=next((f for f in result['findings'] if f['field']=='ordered_notes.density_conditions.atom'),None)
+    assert atom is not None, 'MISSING_ATOMIC_ATTRIBUTION_FOR_PROVED_SOURCE_EXPRESSION'
+    assert atom['result']=='MATCH' and atom['raw_reported_text']==expression
+    assert atom['atom_proof']['character_span']==[proof['character_start'],proof['character_end']]
+    assert atom['read_only'] and atom['correction_eligible'] is False
+    assert atom['unit'] is atom['full_precision_expected'] is None
+
+
+@pytest.mark.parametrize('mutation',['duplicate-text','duplicate-paragraph','missing','reorder','split-paragraph',
+    'split-runs','merged-runs','wrapped-run','unit','case','punctuation','line-break','numbering','hidden','field','excluded','cross-role'])
+def test_r2g2_uncertain_physical_atom_never_receives_credit(case,monkeypatch,mutation):
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    p,op,source=case;monkeypatch.setattr('c09_procedure.request',lambda *a:source)
+    d=Document(p);full=source['reference']['all_source_notes'][1]
+    para=next(x for x in d.paragraphs if x.text.endswith(full));raw=para.text
+    if mutation=='duplicate-text':para.text=raw+raw
+    elif mutation=='duplicate-paragraph':para._p.addnext(deepcopy(para._p))
+    elif mutation=='missing':para._p.getparent().remove(para._p)
+    elif mutation=='reorder':
+        other=para._p.getnext();other.addnext(para._p)
+    elif mutation=='split-paragraph':
+        para.text=raw[:20];para.insert_paragraph_before(raw[20:])
+    elif mutation=='split-runs':
+        para.clear();para.add_run(raw[:20]);para.add_run(raw[20:])
+    elif mutation=='merged-runs':
+        para.clear();para.add_run(raw)
+    elif mutation=='wrapped-run':
+        run=next(r for r in para.runs if r.text.endswith(full));wrapper=OxmlElement('w:hyperlink');run._r.addprevious(wrapper);wrapper.append(run._r)
+    elif mutation=='unit':para.text=raw.replace('degF','degC')
+    elif mutation=='case':para.text=raw.lower()
+    elif mutation=='punctuation':para.text=raw.replace('atmosphere','atmosphere;')
+    elif mutation=='line-break':para.text=raw.replace(' and ','\n and ')
+    elif mutation=='numbering':para._p.get_or_add_pPr().append(OxmlElement('w:numPr'))
+    elif mutation=='hidden':para.runs[-1]._r.get_or_add_rPr().append(OxmlElement('w:vanish'))
+    elif mutation=='field':para._p.append(OxmlElement('w:fldSimple'))
+    elif mutation=='excluded':para.insert_paragraph_before('Document Control')
+    else:
+        other=next(x for x in d.paragraphs if 'Mix above Additives' in x.text);other._p.addnext(deepcopy(para._p))
+    target=p.parent/('atom-'+mutation+'.docx');d.save(target);before=target.read_bytes()
+    result=compare_document(target,op)
+    atoms=[f for f in result.get('findings',[]) if f['field']=='ordered_notes.density_conditions.atom']
+    assert not atoms or all(f['result']=='NOT_VERIFIABLE' and f['atom_proof'] is None for f in atoms)
+    assert target.read_bytes()==before
+
+
+@pytest.mark.parametrize('mutation',['operator','source','module','format','placeholder','document'])
+def test_r2g2_crossed_source_receipts_and_formatting_have_no_atom(case,monkeypatch,mutation):
+    p,op,source=case;bad=deepcopy(source)
+    if mutation=='operator':bad['operator_input_sha256']='0'*64
+    elif mutation=='source':bad['source_sha']='0'*40
+    elif mutation=='module':bad['source_module_sha256']['phase_10_procedure.py']='0'*64
+    elif mutation=='format':bad['reference']['all_source_notes'][1]=bad['reference']['all_source_notes'][1].replace('70','70.000')
+    elif mutation=='placeholder':bad['reference']['all_source_notes'][1]='NOTE ....: rig-site value unknown'
+    else:
+        import c09_procedure
+        original=c09_procedure.parse_docx
+        def crossed(path):
+            result=original(path);result['source_document_sha256']='0'*64;return result
+        monkeypatch.setattr(c09_procedure,'parse_docx',crossed)
+    monkeypatch.setattr('c09_procedure.request',lambda *a:bad)
+    result=compare_document(p,op)
+    atoms=[f for f in result['findings'] if f['field']=='ordered_notes.density_conditions.atom']
+    if not result['reference']:
+        assert not atoms  # Preserve the original one-to-one source-blocked raw findings.
+    else:
+        assert len(atoms)==1 and atoms[0]['result']=='NOT_VERIFIABLE' and atoms[0]['atom_proof'] is None
+
+
+def test_r2g2_global_literal_does_not_promote_embedded_numbers_or_slurry_fields(case,monkeypatch):
+    p,op,source=case;monkeypatch.setattr('c09_procedure.request',lambda *a:source)
+    result=compare_document(p,op);atoms=[f for f in result['findings'] if f.get('atom_proof')]
+    assert len(atoms)==1 and atoms[0]['slurry'] is None
+    assert atoms[0]['association_scope']=='GLOBAL_DENSITY_DISPLAY_CONVENTION_NOT_A_SLURRY'
+    assert atoms[0]['unit'] is atoms[0]['full_precision_expected'] is None
+    assert atoms[0]['atom_proof']['measurement'] is False
+    assert next(f for f in result['findings'] if f['field']=='procedure.sequence')['result']=='NOT_VERIFIABLE'
+
+
+def test_r2g2_expression_ast_must_be_the_exact_hashed_source_bytes(case,monkeypatch):
+    import ast
+    from narrative_source import SNAPSHOT
+    p,op,source=case;monkeypatch.setattr('c09_procedure.request',lambda *a:source)
+    target=SNAPSHOT/'phase_10_procedure.py';original=Path.read_text;tree=ast.parse(original(target))
+    function=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='build_ordered_notes')
+    assignment=next(n for n in function.body if isinstance(n,ast.Assign) and isinstance(n.targets[0],ast.Subscript)
+        and isinstance(n.targets[0].slice,ast.Constant) and n.targets[0].slice.value=='note_densities')
+    expected=assignment.value.args[0].value
+    assignment.value.args[0]=ast.Constant(expected[-5:])
+    forged=ast.unparse(tree)
+    # Simulate different contents on a second source read; never mutate the snapshot.
+    monkeypatch.setattr(Path,'read_text',lambda self,*a,**k:forged if self==target else original(self,*a,**k))
+    result=compare_document(p,op)
+    atom=next(f for f in result['findings'] if f['field']=='ordered_notes.density_conditions.atom')
+    assert atom['result']=='NOT_VERIFIABLE' or atom['source_wording']==expected
