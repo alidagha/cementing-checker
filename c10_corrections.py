@@ -289,6 +289,27 @@ def execute(docx, operator, selection=None, output=None, json_inputs=None):
     changes = [(target(document,dict(locator=x['locator'],raw_reported_text=x['original_raw_text'],field=x['field'],slurry=x['slurry'])),
         x['original_raw_text'],x['replacement']) for x in selected]
     candidate = package_copy(original, changes)
+    if os.name=='nt':
+        from private_files import windows_transaction,windows_stage
+        inputs=[path]+[Path(x['path']) for x in (json_inputs or [])]
+        staged=output.parent/('.c10-'+uuid.uuid4().hex+'.docx')
+        with windows_transaction(output.parent,inputs) as guard:
+            with windows_stage(guard,staged,candidate) as publish:
+                after=recheck(staged,before,selected)
+                current=identities()
+                if current!={k:before['bindings'][k] for k in current}:raise Refusal('SOURCE_IDENTITY_DRIFT')
+                if (sha256(safe_input(private_path(path))).hexdigest()!=before['bindings']['original_document_sha256']
+                        or digest(operator)!=before['bindings']['operator_sha256']
+                        or after['source_document_sha256']!=sha256(candidate).hexdigest()):
+                    raise Refusal('ORIGINAL_OR_OPERATOR_CHANGED_BEFORE_PUBLICATION')
+                verify_json_files(json_inputs,operator,selection)
+                result=dict(before,transaction_status='COPY_CREATED',comparison_after=after,
+                    selected=selected,unselected=[x for x in before['proposals'] if x not in selected],
+                    original_document_sha256=before['bindings']['original_document_sha256'],
+                    new_document_sha256=sha256(candidate).hexdigest(),output_path=str(output),
+                    unchanged_package_parts=True,dependency_group_complete=False)
+                publish(output)
+                return result
     # Directory descriptors prevent symlink-parent substitution; hard-link is atomic/no-clobber.
     fd = os.open(ROOT/'tmp', os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
     temporary = '.c10-'+uuid.uuid4().hex+'.docx'

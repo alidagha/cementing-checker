@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 from io import BytesIO
 import subprocess
+from private_files import exclusive_create, private_permissions
 import sys
 import tempfile
 from threading import RLock
@@ -257,7 +258,7 @@ class PrivateSession:
 
     def folder_check(self):
         if (self.folder.resolve(strict=True) != self.folder or self.folder.parent != ROOT/'c04/tmp'
-                or self.folder.is_symlink() or self.folder.stat().st_mode & 0o077):
+                or self.folder.is_symlink() or not private_permissions(self.folder)):
             raise Refusal('Private session directory unavailable')
         identities()
 
@@ -274,7 +275,7 @@ class PrivateSession:
         value['choice_id']=digest(value)
         file=self.folder/('well-choices-'+value['choice_id']+'.json')
         if not file.exists():
-            fd=os.open(file,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
+            fd=exclusive_create(file)
             with os.fdopen(fd,'w') as out:json.dump(value,out,allow_nan=False)
         self.well_choices=value
         return self.current_hardware_choices(job,hardware)
@@ -290,7 +291,7 @@ class PrivateSession:
                 or digest(expected)!=key):
             self.well_choices=None;return None
         file=self.folder/('well-choices-'+key+'.json')
-        if file.is_symlink() or file.stat().st_mode&0o077 or json.loads(file.read_text())!=value:
+        if file.is_symlink() or not private_permissions(file) or json.loads(file.read_text())!=value:
             self.well_choices=None;raise Refusal('Hardware choice receipt rejected')
         return value
 
@@ -330,7 +331,7 @@ class PrivateSession:
         self.folder_check(); baseline = self.current()
         if baseline is None or baseline['run_outcome'] != 'PARTIAL_FINDINGS_ONLY':
             raise Refusal('CURRENT_ADMITTED_BASELINE_REQUIRED')
-        if self.document.parent != self.folder or self.document.is_symlink() or self.document.stat().st_mode & 0o077:
+        if self.document.parent != self.folder or self.document.is_symlink() or not private_permissions(self.document):
             raise Refusal('OWNING_PRIVATE_BASELINE_DOCUMENT_REQUIRED')
         receipt = baseline['receipt']; operator = receipt['inputs_snapshot'].get('cement')
         c03 = baseline['results']['C03']; c02 = c03['c02']
@@ -381,10 +382,10 @@ class PrivateSession:
         identity = (folder.stat().st_dev, folder.stat().st_ino)
         source, output = folder/'input.docx', folder/'selected-copy.docx'
         try:
-            if folder.resolve() != folder or folder.is_symlink() or folder.stat().st_mode & 0o077:
+            if folder.resolve() != folder or folder.is_symlink() or not private_permissions(folder):
                 raise Refusal('PRIVATE_C10_DIRECTORY_REQUIRED')
             private_path(source, existing=False)
-            descriptor = os.open(source, os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW, 0o600)
+            descriptor = exclusive_create(source)
             with os.fdopen(descriptor, 'wb') as out: out.write(original)
             if safe_input(private_path(source)) != original: raise Refusal('C10_INPUT_COPY_DRIFT')
             yield source, output
@@ -448,7 +449,7 @@ class PrivateSession:
                 'request':request, 'request_sha256':digest(request), 'proposal_sha256':digest(proposal)}, 'proposal':proposal}
             value['proposal_id'] = digest(value)
             receipt_path = self.folder/('c10-proposal-'+value['receipt']['inspection_run_id']+'.json')
-            descriptor = os.open(receipt_path, os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW, 0o600)
+            descriptor = exclusive_create(receipt_path)
             with os.fdopen(descriptor, 'w') as out: json.dump(value, out, allow_nan=False)
             self.copy_proposal = value
             return self.current_copy_proposals()
@@ -559,7 +560,7 @@ class PrivateSession:
                 'transaction_sha256':digest(transaction), 'output_sha256':sha256(data).hexdigest()}, 'transaction':transaction}
             value['copy_id'] = digest(value)
             receipt_path = self.folder/('c10-copy-'+value['receipt']['copy_run_id']+'.json')
-            descriptor = os.open(receipt_path, os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW, 0o600)
+            descriptor = exclusive_create(receipt_path)
             with os.fdopen(descriptor, 'w') as out: json.dump(value, out, allow_nan=False)
             self.copy_output = dict(value, bytes=data)
             return self.current_created_copy(selected_ids, confirmed)
@@ -669,7 +670,7 @@ class PrivateSession:
                 'impact_sha256': digest(impact)}, 'impact': impact}
             preview['preview_id'] = digest(preview)
             receipt_path = self.folder/('dv-preview-'+preview['receipt']['preview_run_id']+'.json')
-            descriptor = os.open(receipt_path, os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW, 0o600)
+            descriptor = exclusive_create(receipt_path)
             with os.fdopen(descriptor, 'w') as out: json.dump(preview, out, allow_nan=False)
             self.dv_preview = preview
             return self.current_dead_volume_preview(slurry, value)
@@ -713,10 +714,10 @@ class PrivateSession:
         folder_identity = (folder.stat().st_dev, folder.stat().st_ino)
         copy_path = folder/'input.docx'
         try:
-            if folder.resolve() != folder or folder.stat().st_mode & 0o077:
+            if folder.resolve() != folder or not private_permissions(folder):
                 raise Refusal('PRIVATE_PREVIEW_DIRECTORY_REQUIRED')
             private_path(copy_path, existing=False)
-            descriptor = os.open(copy_path, os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW, 0o600)
+            descriptor = exclusive_create(copy_path)
             with os.fdopen(descriptor, 'wb') as out: out.write(original)
             if safe_input(private_path(copy_path)) != original:
                 raise Refusal('PREVIEW_COPY_IDENTITY_DRIFT')
@@ -760,7 +761,7 @@ class PrivateSession:
             'impact_sha256': digest(impact)}, 'impact': impact}
         preview['preview_id'] = digest(preview)
         path = self.folder/('volume-preview-'+preview['receipt']['preview_run_id']+'.json')
-        descriptor = os.open(path, os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW, 0o600)
+        descriptor = exclusive_create(path)
         with os.fdopen(descriptor, 'w') as out: json.dump(preview, out, allow_nan=False)
         self.volume_preview = preview
         return self.current_volume_preview(slurry, volume)
@@ -774,7 +775,7 @@ class PrivateSession:
         path = self.folder/(sha256(raw).hexdigest()+'.docx')
         if path.is_symlink(): raise Refusal('Symlink input refused')
         if not path.exists():
-            descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+            descriptor = exclusive_create(path)
             with os.fdopen(descriptor, 'wb') as out: out.write(raw)
         if path.resolve() != path or safe_input(path) != raw:
             raise Refusal('Original DOCX identity changed')
@@ -1010,7 +1011,7 @@ class PrivateSession:
         report['message']=engineer_message(report)
         report['report_id']=report_identity(report);report['receipt']['report_id']=report['report_id']
         receipt_path=self.folder/('run-'+report['receipt']['run_id']+'.json')
-        descriptor=os.open(receipt_path,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
+        descriptor=exclusive_create(receipt_path)
         with os.fdopen(descriptor,'w') as out:json.dump(report,out,allow_nan=False)
         self.document=path
         self.result = report

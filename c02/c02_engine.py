@@ -24,14 +24,30 @@ def verify_source():
             raise ValueError('Source snapshot mismatch: ' + name)
 
 
+def source_origin(filename):
+    """Only real, absolute, component-contained, non-aliased snapshot files."""
+    try:
+        path=Path(filename)
+        if not path.is_absolute() or not path.is_relative_to(SNAPSHOT):return None
+        resolved=path.resolve(strict=True)
+        if path!=resolved or not resolved.is_relative_to(SNAPSHOT) or not resolved.is_file():return None
+        inventory=dict(line.split('  ',1)[::-1] for line in (ROOT/'evidence/snapshot.sha256').read_text().splitlines())
+        key='snapshot/'+resolved.relative_to(SNAPSHOT).as_posix()
+        if inventory.get(key)!=hashlib.sha256(resolved.read_bytes()).hexdigest():return None
+        return resolved
+    except (OSError,ValueError,RuntimeError,TypeError):return None
+
+
 def reference(operator):
     verify_source()
     # Sibling imports must resolve only in the immutable snapshot, never checkout.
     sys.path.insert(0, str(SNAPSHOT))
-    calls = set()
+    calls = set(); origins_cache = {}
 
     def trace(frame, event, arg):
-        inside = str(frame.f_code.co_filename).startswith(str(SNAPSHOT) + '/')
+        name=frame.f_code.co_filename
+        if name not in origins_cache:origins_cache[name]=source_origin(name)
+        inside=origins_cache[name] is not None
         if event == 'call' and inside:
             if 'session_state' in frame.f_code.co_names:
                 raise RuntimeError('Stateful source call prohibited: ' + frame.f_code.co_name)

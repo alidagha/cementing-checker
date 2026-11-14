@@ -13,6 +13,11 @@ import tarfile
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def alias(path):
+    path=Path(path)
+    return path.is_symlink() or path.resolve()!=path.absolute()
+
+
 def sha(raw):
     return hashlib.sha256(raw).hexdigest()
 
@@ -55,10 +60,10 @@ def bundled_source(root, lock):
         raise ValueError('Invalid bundled source pin')
     folder = Path(root)/'checker_engine'
     name = commit+'.tar.gz'
-    if folder.is_symlink() or not folder.is_dir() or {p.name for p in folder.iterdir()}!={name}:
+    if alias(folder) or not folder.is_dir() or {p.name for p in folder.iterdir()}!={name}:
         raise ValueError('Missing/extra/symlinked local engine bundle')
     path = folder/name
-    if path.is_symlink() or not path.is_file() or path.stat().st_size>32*1024*1024:
+    if alias(path) or not path.is_file() or path.stat().st_size>32*1024*1024:
         raise ValueError('Invalid local engine bundle')
     raw = path.read_bytes()
     return verify_members(raw, lock), sha(raw)
@@ -81,7 +86,7 @@ def create(destination):
     destination.mkdir(mode=0o700)
     for directory, directories, names in os.walk(ROOT, followlinks=False):
         for name in directories+names:
-            if (Path(directory)/name).is_symlink():
+            if alias(Path(directory)/name):
                 raise ValueError('Candidate symlink prohibited')
         # A checkout's real Git directory/worktree marker is metadata, not input.
         # The archive is a build input, not a second copy inside the runtime.
@@ -105,7 +110,7 @@ def create(destination):
     if sha(inventory.encode()) != lock['snapshot_manifest_sha256']:
         raise ValueError('Accepted inventory ordering mismatch')
     (destination/'evidence').mkdir()
-    (destination/'evidence/snapshot.sha256').write_text(inventory)
+    (destination/'evidence/snapshot.sha256').write_bytes(inventory.encode('utf-8'))
     for group in ('', 'c02', 'c03', 'c04'):
         for folder in ('tmp','cache','fixtures','output','evidence'):
             (destination/group/folder).mkdir(parents=True, exist_ok=True)

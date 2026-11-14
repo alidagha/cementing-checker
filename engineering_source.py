@@ -11,7 +11,7 @@ import sys
 ROOT = Path(__file__).resolve().parent
 SNAPSHOT = ROOT / 'snapshot'
 sys.path.insert(0, str(ROOT / 'c02'))
-from c02_engine import SOURCE_SHA, read_json, verify_source
+from c02_engine import SOURCE_SHA, read_json, verify_source, source_origin
 
 
 def request(action, operator, **kwargs):
@@ -460,12 +460,13 @@ def run(payload):
     verify_candidate(ROOT)
     verify_source()
     sys.path.insert(0, str(SNAPSHOT))
-    calls = set()
+    calls = set(); origins_cache={}
     before_input = json.dumps(payload['operator'], sort_keys=True, allow_nan=False)
 
     def trace(frame, event, arg):
         name = frame.f_code.co_filename
-        inside = name.startswith(str(SNAPSHOT) + '/')
+        if name not in origins_cache:origins_cache[name]=source_origin(name)
+        inside=origins_cache[name] is not None
         if event == 'call' and inside:
             if 'session_state' in frame.f_code.co_names:
                 raise RuntimeError('Live Streamlit state prohibited: ' + frame.f_code.co_name)

@@ -42,6 +42,7 @@ import pandas as pd
 import streamlit as st
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 from golden_source import SNAPSHOT
+from c02_engine import source_origin
 sys.path.insert(0,str(SNAPSHOT))
 assert get_script_run_ctx() is not None
 project=json.loads(INPUT)['project']
@@ -54,12 +55,13 @@ for key,value in project.items():
         from well_profile import SURVEY_COLUMNS
         value=dict(value,survey=pd.DataFrame(value['survey'],columns=SURVEY_COLUMNS))
     st.session_state[key]=value
-calls=set();stage='build_master_context'
+calls=set();origins_cache={};stage='build_master_context'
 def trace(frame,event,arg):
     filename=frame.f_code.co_filename
-    if event=='call' and filename.startswith(str(SNAPSHOT)+'/'):
+    if filename not in origins_cache:origins_cache[filename]=source_origin(filename)
+    if event=='call' and origins_cache[filename] is not None:
         calls.add(Path(filename).name+':'+frame.f_code.co_name)
-    if event=='call' and filename.endswith('/docxtpl/template.py') and frame.f_code.co_name=='render':
+    if event=='call' and Path(filename).parts[-2:]==('docxtpl','template.py') and frame.f_code.co_name=='render':
         calls.add('docxtpl.template:DocxTemplate.render')
     return trace
 sys.settrace(trace)
