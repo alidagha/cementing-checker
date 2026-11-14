@@ -258,3 +258,39 @@ def test_special_roles_are_not_selectable(case,job,fluid):
     p=c10.propose(path,op)
     assert p['status']=='INPUT_REJECTED' or not any(x['action']=='SELECTABLE' for x in p['proposals'])
     assert not out.exists()
+
+
+@pytest.mark.parametrize('failure',['none','collision','changed-stage','stage-alias'])
+def test_w2_windows_stage_protocol_identity_cleanup_and_no_clobber(tmp_path,monkeypatch,failure):
+    """Protocol control on Linux; never presented as native NTFS/Win32 evidence."""
+    import os,sys,types
+    from private_files import windows_stage,UnsupportedSecurity
+    monkeypatch.setattr(os,'O_BINARY',0,raising=False)  # Explicit protocol model, not an OS claim.
+    monkeypatch.setitem(sys.modules,'msvcrt',types.SimpleNamespace(open_osfhandle=lambda handle,flags:handle,get_osfhandle=lambda fd:fd))
+    stage=tmp_path/'stage.docx';out=tmp_path/'copy.docx';original=b'private candidate bytes'
+    class Backend:
+        handles={}
+        def open(self,path,create=False,publication=False):
+            fd=os.open(path,os.O_RDWR|os.O_CREAT|os.O_EXCL if create else os.O_RDONLY);self.handles[fd]=Path(path);return fd
+        def owner_only(self,handle):pass
+        def identity(self,handle):
+            value=os.fstat(handle);return value.st_dev,value.st_ino
+        def read(self,handle):return os.read(handle,1000)
+        def publish(self,handle,destination):os.link(self.handles[handle],destination);os.unlink(self.handles[handle])
+        def dispose(self,handle):os.unlink(self.handles[handle])
+        def close(self,handle):os.close(handle)
+    if failure=='collision':out.write_bytes(b'existing output')
+    try:
+        with windows_stage(Backend(),stage,original) as publish:
+            assert stage.read_bytes()==original
+            if failure=='changed-stage':stage.write_bytes(b'changed')
+            if failure=='stage-alias':
+                parked=tmp_path/'parked';stage.rename(parked);stage.write_bytes(original)
+            if failure=='none':publish(out)
+            else:
+                with pytest.raises((FileExistsError,UnsupportedSecurity)):publish(out)
+    except UnsupportedSecurity:
+        assert failure=='stage-alias'  # Never delete an identity-substituted file as if it were ours.
+    if failure=='none':assert out.read_bytes()==original and not stage.exists()
+    elif failure=='collision':assert out.read_bytes()==b'existing output' and not stage.exists()
+    else:assert not out.exists()

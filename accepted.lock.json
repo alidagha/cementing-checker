@@ -13,8 +13,8 @@
     },
     {
       "path": "c02/c02_engine.py",
-      "bytes": 9251,
-      "sha256": "b3327b430b37df45421d81f6bed7087c381eca02cf66dc12b0df6f4262ede6bd"
+      "bytes": 10103,
+      "sha256": "6a1d9d28cdeb1fc1125b2a951ba06141dd96fee9cc6db46a0e364d7a3846cd4e"
     },
     {
       "path": "c02/c02_compare.py",
@@ -29,7 +29,7 @@
     {
       "path": "c03/c03_source.py",
       "bytes": 7438,
-      "sha256": "aca286244e1909e9112f04c3e938c701bd47b5b4954897a0d365d0e918feeea0"
+      "sha256": "85ac0146d521b3bf0c81d7ea8d8c10e9400adc814ec215d6830459b579113ca5"
     },
     {
       "path": "c03/c03_water.py",
@@ -44,7 +44,7 @@
     {
       "path": "c04/c04_runtime.py",
       "bytes": 2918,
-      "sha256": "da9cefa372c771885d52ffeba02eb90477bfd82aa1bb218b35a4dc790dc65a68"
+      "sha256": "75f941c67d299cb2faaa33f3c6960d37462805d14a13ce15be9a9a3d6d1c0b06"
     },
     {
       "path": "c04/c04_preview.py",

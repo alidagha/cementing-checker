@@ -395,3 +395,89 @@ def test_ci01_checkout_and_gate_cli_real_git_mutations(tmp_path):
         env['CHECKER_NEEDS_JSON']=value
         assert run('gate').returncode!=0
     env['GITHUB_REF']='refs/heads/feature';assert run('checkout').returncode!=0
+
+
+def test_w2_source_origin_is_pinned_component_contained_and_not_an_alias(tmp_path):
+    import os
+    import c10_corrections  # Existing bootstrap selects the actual private engine.
+    from c02_engine import source_origin,SNAPSHOT
+    genuine=SNAPSHOT/'phase_5_cement.py'
+    assert source_origin(str(genuine))==genuine.resolve()
+    for wrong in ['phase_5_cement.py',str(SNAPSHOT)+'-other/phase_5_cement.py',
+                  str(SNAPSHOT/'../outside.py'),r'C:\outside\snapshot\phase_5_cement.py',
+                  r'\\server\share\phase_5_cement.py']:
+        assert source_origin(wrong) is None
+    external=tmp_path/'outside.py';external.write_text('unverified = True\n')
+    alias=SNAPSHOT/'w2-alias.py'
+    try:
+        alias.symlink_to(external)
+        assert source_origin(str(alias)) is None
+    finally:
+        if alias.is_symlink():alias.unlink()
+    link=SNAPSHOT/'w2-hard-link.py'
+    try:
+        os.link(external,link)
+        assert source_origin(str(link)) is None  # Even a non-symlink unknown source is not pinned.
+    finally:
+        if link.exists():link.unlink()
+
+
+def test_w2_posix_private_primitives_remain_exclusive_and_private(tmp_path):
+    import os
+    from private_files import exclusive_create,private_permissions,create_private_directory,_filename,UnsupportedSecurity
+    folder=tmp_path/'private';create_private_directory(folder);assert private_permissions(folder)
+    p=folder/'original';fd=exclusive_create(p)
+    with os.fdopen(fd,'wb') as out:out.write(b'unchanged')
+    assert private_permissions(p)
+    with pytest.raises(FileExistsError):exclusive_create(p)
+    assert p.read_bytes()==b'unchanged'
+    alias=folder/'alias';alias.symlink_to(p)
+    with pytest.raises(FileExistsError):exclusive_create(alias)
+    assert p.read_bytes()==b'unchanged'
+    for bad in ['NUL.docx','CON.docx','file:stream.docx','trailing.']:
+        with pytest.raises(UnsupportedSecurity):_filename(bad)
+
+
+def test_w2_setup_rejects_git_private_destination_before_any_environment_write(tmp_path,monkeypatch):
+    """Real private filesystem/source validation; no native Windows claim or install."""
+    from tools import windows_checker
+    root=Path(__file__).resolve().parents[1]
+    source=tmp_path/'source';source.mkdir()
+    for name in ['accepted.lock.json','upstream.lock.json',*[x['path'] for x in json.loads((root/'accepted.lock.json').read_text())['files']]]:
+        target=source/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes((root/name).read_bytes())
+    lock=json.loads((source/'upstream.lock.json').read_text());bundle=io.BytesIO()
+    with tarfile.open(fileobj=bundle,mode='w:gz') as archive:
+        for row in lock['files']:
+            raw=(root/'snapshot'/row['path']).read_bytes();info=tarfile.TarInfo('source/'+row['path']);info.size=len(raw);archive.addfile(info,io.BytesIO(raw))
+    (source/'checker_engine').mkdir();(source/'checker_engine'/(lock['commit']+'.tar.gz')).write_bytes(bundle.getvalue())
+    foreign=tmp_path/'foreign-checkout';(foreign/'.git').mkdir(parents=True);local=foreign/'LocalData';local.mkdir()
+    monkeypatch.setattr(windows_checker,'ROOT',source);monkeypatch.setenv('LOCALAPPDATA',str(local))
+    touched=[]
+    def environment_write(*args):
+        touched.append(True);raise RuntimeError('ENVIRONMENT_WRITE_REACHED_INSIDE_GIT')
+    monkeypatch.setattr(windows_checker.venv.EnvBuilder,'create',environment_write)
+    with pytest.raises(ValueError,match='PRIVATE_INSTALL_OUTSIDE_CHECKOUTS_REQUIRED'):
+        windows_checker.setup()
+    assert not touched and not (local/'CementingCheckerW2').exists()
+    clean=tmp_path/'private-local';clean.mkdir();monkeypatch.setenv('LOCALAPPDATA',str(clean))
+    with pytest.raises(RuntimeError,match='ENVIRONMENT_WRITE_REACHED_INSIDE_GIT'):
+        windows_checker.setup()
+    assert touched and (clean/'CementingCheckerW2').is_dir()
+
+
+def test_w2_windows_remote_volume_is_refused_before_open(monkeypatch):
+    """Pure Windows-path/API protocol model; genuine native UAT remains required."""
+    import types
+    from pathlib import PureWindowsPath
+    import private_files
+    monkeypatch.setattr(private_files,'Path',PureWindowsPath)
+    for kind in (0,1,4,5,6,2,3):
+        backend=object.__new__(private_files._Windows);opened=[]
+        backend.k=types.SimpleNamespace(GetDriveTypeW=lambda anchor:kind)
+        def opener(*args):
+            opened.append(True);raise RuntimeError('PATH_OPEN_REACHED')
+        backend.open=opener
+        expected=RuntimeError if kind in (2,3) else private_files.UnsupportedSecurity
+        with pytest.raises(expected):
+            with backend.parents(PureWindowsPath('M:/private/runtime')):pass
+        assert bool(opened)==(kind in (2,3))

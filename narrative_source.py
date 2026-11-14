@@ -8,7 +8,7 @@ import sys
 
 from engineering_source import ROOT, SNAPSHOT, install_audit
 sys.path.insert(0, str(ROOT / 'c02'))
-from c02_engine import SOURCE_SHA, read_json, verify_source
+from c02_engine import SOURCE_SHA, read_json, verify_source, source_origin
 
 
 def request(operator, action='summary', destination=None):
@@ -145,12 +145,15 @@ from pathlib import Path
 import streamlit as st
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 from narrative_source import summary_reference, SNAPSHOT
+from c02_engine import source_origin
 sys.path.insert(0,str(SNAPSHOT))
 assert get_script_run_ctx() is not None
 assert type(st.session_state).__module__=='streamlit.runtime.state.session_state_proxy'
-calls=set()
+calls=set();origins_cache={}
 def trace(frame,event,arg):
-    if event=='call' and str(frame.f_code.co_filename).startswith(str(SNAPSHOT)+'/'):
+    name=frame.f_code.co_filename
+    if name not in origins_cache:origins_cache[name]=source_origin(name)
+    if event=='call' and origins_cache[name] is not None:
         calls.add(Path(frame.f_code.co_filename).name+':'+frame.f_code.co_name)
     return trace
 sys.settrace(trace)

@@ -120,3 +120,15 @@ cement Yield/Sacks cell replacements to a new private DOCX, then re-parse/recomp
 Original bytes and unselected discrepancies remain intact; unsupported dependencies
 remain manual/unverified. See [C10 contract](docs/specifications/C10-safe-copy.md).
 This is partial functional checking, not authentic Golden UAT or whole-program PASS.
+
+
+## Windows W2 review candidate — native UAT required
+
+**WINDOWS_NATIVE_NOT_VERIFIED — OWNER MACHINE UAT REQUIRED.**
+`Setup_Checker_Windows.cmd` proposes a one-time separate Checker environment;
+`Run_Checker_Windows.cmd` uses the approved C10 entrypoint on 127.0.0.1:8502.
+Final-byte Linux regression/security controls passed, but native Windows setup,
+offline restart and NTFS security/session parity remain unverified. Do not treat
+this candidate as Windows-ready or deploy it.
+See [W2 verification, protected hash chain and exact-head Windows UAT checklist](docs/coverage/W2-windows-native-offline.md).
+Cementing App, its installed packages and its port must remain untouched.

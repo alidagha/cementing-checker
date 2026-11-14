@@ -11,7 +11,7 @@ ROOT = HERE.parent
 PIN = '60dffefb8c941ad90cb7caba0992126a35803717'
 PINS = {
     'checker_parser.py':'d1265e61d7b62164942e47e04d24b6ce82ef7218ea0d724e92de1d08f30ebcb7',
-    'c02/c02_engine.py':'b3327b430b37df45421d81f6bed7087c381eca02cf66dc12b0df6f4262ede6bd',
+    'c02/c02_engine.py':'6a1d9d28cdeb1fc1125b2a951ba06141dd96fee9cc6db46a0e364d7a3846cd4e',
     'c02/c02_compare.py':'3c416fa4d3ec7f4ba9f606cb3b8698d52391e85cde28b7295d2ebbed5d671e0d',
 }
 
